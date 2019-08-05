@@ -36,7 +36,7 @@ type Service struct {
 	BrokerAddr      []string
 	ApiKey          string
 	PaymentsAPIURL  string
-	DAO             dao.Service
+	DAO             dao.DAO
 	TranCollection  string
 	ProdCollection  string
 	ProductMap      *config.ProductMap
@@ -110,7 +110,7 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 		return nil, err
 	}
 
-	dao := dao.NewDAOService(cfg)
+
 
 	return &Service{
 		Consumer:        c,
@@ -124,7 +124,7 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 		BrokerAddr:      cfg.BrokerAddr,
 		ApiKey:          cfg.ChsAPIKey,
 		PaymentsAPIURL:  cfg.PaymentsAPIURL,
-		DAO:             dao,
+		DAO:             dao.New(cfg),
 		TranCollection:  cfg.TransactionsCollection,
 		ProdCollection:  cfg.ProductsCollection,
 		ProductMap:      productMap,
@@ -233,7 +233,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					}
 
 					//Add Eshu object to the Database
-					err = svc.DAO.CreateEshuResource(&eshu, svc.TranCollection)
+					err = svc.DAO.CreateEshuResource(&eshu)
 					if err != nil {
 						log.Error(err, log.Data{"message": "failed to create eshu request in database",
 							"data":       eshu,
@@ -257,7 +257,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						DisputeDetails:    ""}
 
 					//Add Payment Transaction to the Database
-					err = svc.DAO.CreatePaymentTransactionsResource(&payTrans, svc.ProdCollection)
+					err = svc.DAO.CreatePaymentTransactionsResource(&payTrans)
 					if err != nil {
 						log.Error(err, log.Data{"message": "failed to create production request in database",
 							"data":       payTrans,

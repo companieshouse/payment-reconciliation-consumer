@@ -1,103 +1,76 @@
 package dao
 
 import (
-    "context"
-    "errors"
-    "os"
-    "time"
-
-    "github.com/companieshouse/chs.go/log"
+    "fmt"
     "github.com/companieshouse/payment-reconciliation-consumer/models"
-    "go.mongodb.org/mongo-driver/bson/primitive"
-    "go.mongodb.org/mongo-driver/mongo"
-    "go.mongodb.org/mongo-driver/mongo/options"
+    "github.com/companieshouse/payment-reconciliation-consumer/config"
+    "github.com/globalsign/mgo"
 )
 
-var client *mongo.Client
+var session *mgo.Session
 
-func getMongoClient(mongoDBURL string) *mongo.Client {
-    if client != nil {
-        return client
+// Mongo represents a simplistic MongoDB configuration.
+type Mongo struct {
+    Config *config.Config
+}
+
+func New(cfg *config.Config) *Mongo {
+
+    return &Mongo{
+        Config: cfg,
     }
-
-    ctx := context.Background()
-
-    clientOptions := options.Client().ApplyURI(mongoDBURL)
-    client, err := mongo.Connect(ctx, clientOptions)
-
-    // assume the caller of this func cannot handle the case where there is no database connection so the prog must
-    // crash here as the service cannot continue.
-    if err != nil {
-        log.Error(err)
-        os.Exit(1)
-    }
-
-    // check we can connect to the mongodb instance. failure here should result in a crash.
-    pingContext, cancel := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
-    defer cancel()
-    err = client.Ping(pingContext, nil)
-    if err != nil {
-        log.Error(errors.New("ping to mongodb timed out. please check the connection to mongodb and that it is running"))
-        os.Exit(1)
-    }
-
-    log.Info("connected to mongodb successfully")
-
-    return client
 }
-
-// MongoDatabaseInterface is an interface that describes the mongodb driver
-type MongoDatabaseInterface interface {
-    Collection(name string, opts ...*options.CollectionOptions) *mongo.Collection
-}
-
-func getMongoDatabase(mongoDBURL, databaseName string) MongoDatabaseInterface {
-    return getMongoClient(mongoDBURL).Database(databaseName)
-}
-
-// MongoService is an implementation of the Service interface using MongoDB as the backend driver.
-type MongoService struct {
-    db MongoDatabaseInterface
-}
-
-// EshuResource will store the payable request into the database
-func (m *MongoService) CreateEshuResource(dao *models.EshuResourceDao, collectionName string) error {
-
-    dao.ID = primitive.NewObjectID()
-
-    collection := m.db.Collection(collectionName)
-    _, err := collection.InsertOne(context.Background(), dao)
-    if err != nil {
-        log.Error(err)
-        return err
-    }
-
-    return nil
-}
-
-// EshuResource will store the payable request into the database
-func (m *MongoService) CreatePaymentTransactionsResource(dao *models.PaymentTransactionsResourceDao, collectionName string) error {
-
-    dao.ID = primitive.NewObjectID()
-
-    collection := m.db.Collection(collectionName)
-    _, err := collection.InsertOne(context.Background(), dao)
-    if err != nil {
-        log.Error(err)
-        return err
-    }
-
-    return nil
-}
-
-// Shutdown is a hook that can be used to clean up db resources
-func (m *MongoService) Shutdown() {
-    if client != nil {
-        err := client.Disconnect(context.Background())
+// getMongoSession gets a MongoDB Session
+func getMongoSession() (*mgo.Session, error) {
+    if session == nil {
+        var err error
+        cfg, err := config.Get()
         if err != nil {
-            log.Error(err)
-            return
+            return nil, fmt.Errorf("error getting config: %s", err)
         }
-        log.Info("disconnected from mongodb successfully")
+        session, err = mgo.Dial(cfg.MongoDBURL)
+        if err != nil {
+            return nil, fmt.Errorf("error dialling into mongodb: %s", err)
+        }
     }
+    return session.Copy(), nil
 }
+
+// EshuResource will store the payable request into the database
+func (m *Mongo) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
+
+
+    eshuSession, err := getMongoSession()
+    if err != nil {
+        return err
+    }
+    defer eshuSession.Close()
+
+    cfg, err := config.Get()
+    if err != nil {
+        return fmt.Errorf("error getting config: %s", err)
+    }
+    c := eshuSession.DB(cfg.Database).C(cfg.TransactionsCollection)
+
+    return c.Insert(eshuResource)
+    
+}
+
+// PaymentTransactionResource will store the payable request into the database
+func (m *Mongo) CreatePaymentTransactionsResource(paymentTransactionsResource *models.PaymentTransactionsResourceDao) error {
+    paymentTransactionsSession, err := getMongoSession()
+    if err != nil {
+        return err
+    }
+    defer paymentTransactionsSession.Close()
+
+    cfg, err := config.Get()
+    if err != nil {
+        return fmt.Errorf("error getting config: %s", err)
+    }
+    c := paymentTransactionsSession.DB(cfg.Database).C(cfg.ProductsCollection)
+
+    return c.Insert(paymentTransactionsResource)
+   
+}
+
