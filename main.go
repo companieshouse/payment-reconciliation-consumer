@@ -1,79 +1,79 @@
 package main
 
 import (
-	"fmt"
-	gologger "log"
-	"os"
-	"os/signal"
-	"sync"
-	"syscall"
-	"time"
+    "fmt"
+    gologger "log"
+    "os"
+    "os/signal"
+    "sync"
+    "syscall"
+    "time"
 
-	"github.com/Shopify/sarama"
-	"github.com/companieshouse/chs.go/kafka/resilience"
-	"github.com/companieshouse/chs.go/log"
-	"github.com/companieshouse/payment-reconciliation-consumer/config"
-	"github.com/companieshouse/payment-reconciliation-consumer/service"
+    "github.com/Shopify/sarama"
+    "github.com/companieshouse/chs.go/kafka/resilience"
+    "github.com/companieshouse/chs.go/log"
+    "github.com/companieshouse/payment-reconciliation-consumer/config"
+    "github.com/companieshouse/payment-reconciliation-consumer/service"
 )
 
 func main() {
-	log.Namespace = "payment-reconciliation-consumer"
+    log.Namespace = "payment-reconciliation-consumer"
 
-	// Push the Sarama logs into our custom writer
-	sarama.Logger = gologger.New(&log.Writer{}, "[Sarama] ", gologger.LstdFlags)
+    // Push the Sarama logs into our custom writer
+    sarama.Logger = gologger.New(&log.Writer{}, "[Sarama] ", gologger.LstdFlags)
 
-	cfg, err := config.Get()
-	if err != nil {
-		log.Error(fmt.Errorf("error configuring service: %s. Exiting", err), nil)
-		return
-	}
+    cfg, err := config.Get()
+    if err != nil {
+        log.Error(fmt.Errorf("error configuring service: %s. Exiting", err), nil)
+        return
+    }
 
-	log.Info("intialising payment-reconciliation-consumer service...")
+    log.Info("intialising payment-reconciliation-consumer service...")
 
-	mainChannel := make(chan os.Signal, 1)
-	retryChannel := make(chan os.Signal, 1)
+    mainChannel := make(chan os.Signal, 1)
+    retryChannel := make(chan os.Signal, 1)
 
-	svc, err := service.New(cfg.PaymentProcessedTopic, cfg.PaymentReconciliationGroupName, cfg, nil)
-	if err != nil {
-		log.Error(fmt.Errorf("error initialising main consumer service: '%s'. Exiting", err), nil)
-		return
-	}
+    svc, err := service.New(cfg.PaymentProcessedTopic, cfg.PaymentReconciliationGroupName, cfg, nil)
+    if err != nil {
+        log.Error(fmt.Errorf("error initialising main consumer service: '%s'. Exiting", err), nil)
+        return
+    }
 
-	var wg sync.WaitGroup
-	if !cfg.IsErrorConsumer {
-		retrySvc, err := getRetryService(cfg)
-		if err != nil {
-			log.Error(fmt.Errorf("error initialising retry consumer service: '%s'. Exiting", err), nil)
-			svc.Shutdown(cfg.PaymentProcessedTopic)
-			return
-		}
-		wg.Add(1)
-		go retrySvc.Start(&wg, retryChannel)
-	}
+    var wg sync.WaitGroup
+    if !cfg.IsErrorConsumer {
+        retrySvc, err := getRetryService(cfg)
+        if err != nil {
+            log.Error(fmt.Errorf("error initialising retry consumer service: '%s'. Exiting", err), nil)
+            svc.Shutdown(cfg.PaymentProcessedTopic)
+            return
+        }
+        wg.Add(1)
+        go retrySvc.Start(&wg, retryChannel)
+    }
 
-	wg.Add(1)
-	go svc.Start(&wg, mainChannel)
+    wg.Add(1)
+    go svc.Start(&wg, mainChannel)
 
-	waitForServiceClose(&wg, mainChannel, retryChannel)
+    waitForServiceClose(&wg, mainChannel, retryChannel)
 
-	log.Info("Application successfully shutdown")
+    log.Info("Application successfully shutdown")
 
 }
 
 func getRetryService(cfg *config.Config) (*service.Service, error) {
 
-	retry := &resilience.ServiceRetry{
-		time.Duration(cfg.RetryThrottleRate),
-		cfg.MaxRetryAttempts,
-	}
+    retry := &resilience.ServiceRetry{
+        time.Duration(cfg.RetryThrottleRate),
+        cfg.MaxRetryAttempts,
+    }
 
-	retrySvc, err := service.New(cfg.PaymentProcessedTopic, cfg.PaymentReconciliationGroupName, cfg, retry)
-	if err != nil {
-		log.Error(fmt.Errorf("error initialising retry consumer service: %s", err), nil)
-		return nil, err
-	}
+    retrySvc, err := service.New(cfg.PaymentProcessedTopic, cfg.PaymentReconciliationGroupName, cfg, retry)
+    if err != nil {
+        log.Error(fmt.Errorf("error initialising retry consumer service: %s", err), nil)
+        return nil, err
+    }
 
-	return retrySvc, nil
+    return retrySvc, nil
 }
 
 // waitForServiceClose will receive the close signal and forward a notification
@@ -81,21 +81,21 @@ func getRetryService(cfg *config.Config) (*service.Service, error) {
 // consumers and producers) and exit gracefully.
 func waitForServiceClose(wg *sync.WaitGroup, mainChannel, retryChannel chan os.Signal) {
 
-	// Channel to fan-out interrupt/kill notifications
-	notificationChannel := make(chan os.Signal, 1)
-	signal.Notify(notificationChannel, os.Interrupt, os.Kill, syscall.SIGTERM)
+    // Channel to fan-out interrupt/kill notifications
+    notificationChannel := make(chan os.Signal, 1)
+    signal.Notify(notificationChannel, os.Interrupt, os.Kill, syscall.SIGTERM)
 
-	select {
-	case notification := <-notificationChannel:
-		// Falls into this block to successfully close consumer after service shutdown
-		log.Info("Close signal received, fanning out...")
-		log.Debug("Sending notification to main consumer channel")
-		mainChannel <- notification
+    select {
+    case notification := <-notificationChannel:
+        // Falls into this block to successfully close consumer after service shutdown
+        log.Info("Close signal received, fanning out...")
+        log.Debug("Sending notification to main consumer channel")
+        mainChannel <- notification
 
-		log.Debug("Sending notification to retry consumer channel")
-		retryChannel <- notification
+        log.Debug("Sending notification to retry consumer channel")
+        retryChannel <- notification
 
-		log.Info("Fan out completed")
-	}
-	wg.Wait()
+        log.Info("Fan out completed")
+    }
+    wg.Wait()
 }
