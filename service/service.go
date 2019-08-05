@@ -216,7 +216,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					getPaymentDetailsURL := svc.PaymentsAPIURL + "/private/payments/" + pp.ResourceURI + "/payment-details"
 					log.Info("Payment Details URL : " + getPaymentDetailsURL)
 					//Call Get payment details from payments API
-					paymentDetails, err := payment.Details(getPaymentDetailsURL, svc.Client, svc.ApiKey)
+					paymentDetails, err := payment.GetDetails(getPaymentDetailsURL, svc.Client, svc.ApiKey)
 					if err != nil {
 						log.Error(err, log.Data{"message_offset": message.Offset})
 						svc.HandleError(err, message.Offset, &paymentDetails)

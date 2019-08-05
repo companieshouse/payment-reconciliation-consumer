@@ -22,7 +22,6 @@ func (e *InvalidPaymentAPIResponse) Error() string {
 	return fmt.Sprintf("invalid status returned from payments api: [%d]", e.status)
 }
 
-
 // ----------------------------------------------------------------------------
 
 // Get executes a GET request to the specified URL
@@ -50,6 +49,40 @@ func Get(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.Pay
 
 	body, err := ioutil.ReadAll(res.Body)
 	log.Info("Payment response body", log.Data{"payment": string(body)})
+	if err != nil {
+		return p, err
+	}
+
+	if err := json.Unmarshal(body, &p); err != nil {
+		return p, err
+	}
+
+	return p, nil
+}
+func GetDetails(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentDetailsResponse, error) {
+	var p data.PaymentDetailsResponse
+
+	req, err := http.NewRequest("GET", paymentAPIURL, nil)
+	if err != nil {
+		return p, err
+	}
+
+	req.SetBasicAuth(apiKey, "")
+	log.Trace("GET request to the payment api to get the payment details", log.Data{"Request": paymentAPIURL})
+
+	res, err := HTTPClient.Do(req)
+	if err != nil {
+		return p, err
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return p, &InvalidPaymentAPIResponse{res.StatusCode}
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+	log.Info("Payment details response body", log.Data{"payment details": string(body)})
 	if err != nil {
 		return p, err
 	}
