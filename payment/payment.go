@@ -22,6 +22,7 @@ func (e *InvalidPaymentAPIResponse) Error() string {
 	return fmt.Sprintf("invalid status returned from payments api: [%d]", e.status)
 }
 
+
 // ----------------------------------------------------------------------------
 
 // Get executes a GET request to the specified URL

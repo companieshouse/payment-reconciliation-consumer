@@ -49,9 +49,10 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 	schemaName := "payment-processed"
 	ppSchema, err := schema.Get(cfg.SchemaRegistryURL, schemaName)
 	if err != nil {
-		log.Error(fmt.Errorf("error receiving "+schemaName+" schema", err), nil)
+		log.Error(fmt.Errorf("error receiving %s schema: %s", schemaName, err))
 		return nil, err
 	}
+	log.Info("Successfully received schema", log.Data{"schema_name": schemaName})
 
 	appName := cfg.Namespace()
 
@@ -177,7 +178,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 			if message != nil {
 				if message.Offset >= svc.InitialOffset {
-					fmt.Println("Received message from Payment Service. Attempting reconciliation...")
+					log.Info("Received message from Payment Service. Attempting reconciliation...")
 
 					// Get the payment session first
 					var pp data.PaymentProcessed
@@ -194,31 +195,33 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 					//Create Get payment session URL
 					getPaymentURL := svc.PaymentsAPIURL + "/payments/" + pp.ResourceURI
-
+					log.Info("Payment URL : " + getPaymentURL)
 					//Call Get payment session from payments API
 					paymentResponse, err := payment.Get(getPaymentURL, svc.Client, svc.ApiKey)
 					if err != nil {
 						log.Error(err, log.Data{"message_offset": message.Offset})
 						svc.HandleError(err, message.Offset, &paymentResponse)
 					}
-
+					log.Info("Payment Response : " ,log.Data{"payment_response": paymentResponse })
 					//Get Cost from payment session Cost array
 					cost, err := paymentResponse.GetCost("cic-report")
 					if err != nil {
 						log.Error(err, log.Data{"message_offset": message.Offset})
 						svc.HandleError(err, message.Offset, &paymentResponse)
 					}
+					log.Info("Cost : " ,log.Data{"cost": cost })
 					productCode := svc.ProductMap.Codes[cost.ProductType]
 
 					//Create Get payment URL
 					getPaymentDetailsURL := svc.PaymentsAPIURL + "/private/payments/" + pp.ResourceURI + "/payment-details"
-
+					log.Info("Payment Details URL : " + getPaymentDetailsURL)
 					//Call Get payment details from payments API
 					paymentDetails, err := payment.Details(getPaymentDetailsURL, svc.Client, svc.ApiKey)
 					if err != nil {
 						log.Error(err, log.Data{"message_offset": message.Offset})
 						svc.HandleError(err, message.Offset, &paymentDetails)
 					}
+					log.Info("Payment Details : " ,log.Data{"payment_details": paymentDetails })
 
 					//Build Eshu database object
 					eshu := models.EshuResourceDao{
@@ -296,14 +299,14 @@ func (svc *Service) Shutdown(topic string) {
 	log.Info("Closing producer", log.Data{"topic": topic})
 	err := svc.Producer.Close()
 	if err != nil {
-		log.Error(fmt.Errorf("Error closing producer: %s", err))
+		log.Error(fmt.Errorf("error closing producer: %s", err))
 	}
 	log.Info("Producer successfully closed", log.Data{"topic": svc.Topic})
 
 	log.Info("Closing consumer", log.Data{"topic": topic})
 	err = svc.Consumer.Close()
 	if err != nil {
-		log.Error(fmt.Errorf("Error closing consumer: %s", err))
+		log.Error(fmt.Errorf("error closing consumer: %s", err))
 	}
 	log.Info("Consumer successfully closed", log.Data{"topic": svc.Topic})
 }

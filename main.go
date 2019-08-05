@@ -24,7 +24,7 @@ func main() {
 
 	cfg, err := config.Get()
 	if err != nil {
-		log.Error(fmt.Errorf("error configuring service: %s. Exiting.", err), nil)
+		log.Error(fmt.Errorf("error configuring service: %s. Exiting", err), nil)
 		return
 	}
 
@@ -35,7 +35,7 @@ func main() {
 
 	svc, err := service.New(cfg.PaymentProcessedTopic, cfg.PaymentReconciliationGroupName, cfg, nil)
 	if err != nil {
-		log.Error(fmt.Errorf("error initialising main consumer service: '%s'. Exiting.", err), nil)
+		log.Error(fmt.Errorf("error initialising main consumer service: '%s'. Exiting", err), nil)
 		return
 	}
 
@@ -43,7 +43,7 @@ func main() {
 	if !cfg.IsErrorConsumer {
 		retrySvc, err := getRetryService(cfg)
 		if err != nil {
-			log.Error(fmt.Errorf("error initialising retry consumer service: '%s'. Exiting.", err), nil)
+			log.Error(fmt.Errorf("error initialising retry consumer service: '%s'. Exiting", err), nil)
 			svc.Shutdown(cfg.PaymentProcessedTopic)
 			return
 		}
@@ -69,7 +69,7 @@ func getRetryService(cfg *config.Config) (*service.Service, error) {
 
 	retrySvc, err := service.New(cfg.PaymentProcessedTopic, cfg.PaymentReconciliationGroupName, cfg, retry)
 	if err != nil {
-		log.Error(fmt.Errorf("Error initialising retry consumer service: %s", err), nil)
+		log.Error(fmt.Errorf("error initialising retry consumer service: %s", err), nil)
 		return nil, err
 	}
 
