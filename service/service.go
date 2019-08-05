@@ -202,14 +202,14 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						log.Error(err, log.Data{"message_offset": message.Offset})
 						svc.HandleError(err, message.Offset, &paymentResponse)
 					}
-					log.Info("Payment Response : " ,log.Data{"payment_response": paymentResponse })
+					log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse})
 					//Get Cost from payment session Cost array
 					cost, err := paymentResponse.GetCost("cic-report")
 					if err != nil {
 						log.Error(err, log.Data{"message_offset": message.Offset})
 						svc.HandleError(err, message.Offset, &paymentResponse)
 					}
-					log.Info("Cost : " ,log.Data{"cost": cost })
+					log.Info("Cost : ", log.Data{"cost": cost})
 					productCode := svc.ProductMap.Codes[cost.ProductType]
 
 					//Create Get payment URL
@@ -221,7 +221,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						log.Error(err, log.Data{"message_offset": message.Offset})
 						svc.HandleError(err, message.Offset, &paymentDetails)
 					}
-					log.Info("Payment Details : " ,log.Data{"payment_details": paymentDetails })
+					log.Info("Payment Details : ", log.Data{"payment_details": paymentDetails})
 
 					//Build Eshu database object
 					eshu := models.EshuResourceDao{
