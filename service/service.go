@@ -236,8 +236,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                     err = svc.DAO.CreateEshuResource(&eshu)
                     if err != nil {
                         log.Error(err, log.Data{"message": "failed to create eshu request in database",
-                            "data":       eshu,
-                            "collection": svc.TranCollection})
+                            "data":       eshu})
                         svc.HandleError(err, message.Offset, &eshu)
                     }
 
@@ -260,8 +259,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                     err = svc.DAO.CreatePaymentTransactionsResource(&payTrans)
                     if err != nil {
                         log.Error(err, log.Data{"message": "failed to create production request in database",
-                            "data":       payTrans,
-                            "collection": svc.ProdCollection})
+                            "data":       payTrans})
                         svc.HandleError(err, message.Offset, &payTrans)
                     }
                 }
