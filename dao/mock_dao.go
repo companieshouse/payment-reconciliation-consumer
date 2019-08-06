@@ -2,7 +2,7 @@
 // Source: dao.go
 
 // Package mock_dao is a generated GoMock package.
-package mock_dao
+package dao
 
 import (
 	models "github.com/companieshouse/payment-reconciliation-consumer/models"

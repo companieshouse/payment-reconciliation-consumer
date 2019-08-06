@@ -2,8 +2,8 @@ package dao
 
 import (
     "fmt"
-    "github.com/companieshouse/payment-reconciliation-consumer/models"
     "github.com/companieshouse/payment-reconciliation-consumer/config"
+    "github.com/companieshouse/payment-reconciliation-consumer/models"
     "github.com/globalsign/mgo"
 )
 

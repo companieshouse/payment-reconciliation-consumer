@@ -197,12 +197,12 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                     getPaymentURL := svc.PaymentsAPIURL + "/payments/" + pp.ResourceURI
                     log.Info("Payment URL : " + getPaymentURL)
                     //Call Get payment session from payments API
-                    paymentResponse, err := payment.Get(getPaymentURL, svc.Client, svc.ApiKey)
+                    paymentResponse,statusCode, err := payment.Get(getPaymentURL, svc.Client, svc.ApiKey)
                     if err != nil {
                         log.Error(err, log.Data{"message_offset": message.Offset})
                         svc.HandleError(err, message.Offset, &paymentResponse)
                     }
-                    log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse})
+                    log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse, "status_code":statusCode})
                     //Get Cost from payment session Cost array
                     cost, err := paymentResponse.GetCost("cic-report")
                     if err != nil {
@@ -216,12 +216,12 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                     getPaymentDetailsURL := svc.PaymentsAPIURL + "/private/payments/" + pp.ResourceURI + "/payment-details"
                     log.Info("Payment Details URL : " + getPaymentDetailsURL)
                     //Call Get payment details from payments API
-                    paymentDetails, err := payment.GetDetails(getPaymentDetailsURL, svc.Client, svc.ApiKey)
+                    paymentDetails,statusCode, err := payment.GetDetails(getPaymentDetailsURL, svc.Client, svc.ApiKey)
                     if err != nil {
                         log.Error(err, log.Data{"message_offset": message.Offset})
                         svc.HandleError(err, message.Offset, &paymentDetails)
                     }
-                    log.Info("Payment Details : ", log.Data{"payment_details": paymentDetails})
+                    log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails,"status_code":statusCode})
 
                     //Build Eshu database object
                     eshu := models.EshuResourceDao{
