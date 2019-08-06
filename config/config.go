@@ -47,7 +47,7 @@ func (c *Config) Namespace() string {
     return "payment-reconciliation-consumer"
 }
 var productMap *ProductMap
-
+// Get the appropriate product code from the yaml file.
 func (c *Config) GetProductMap() (*ProductMap, error) {
     if productMap !=nil {
         return productMap, nil
