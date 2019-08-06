@@ -14,6 +14,7 @@ type Mongo struct {
     Config *config.Config
 }
 
+// New returns a new Mongo struct using the provided config
 func New(cfg *config.Config) *Mongo {
 
     return &Mongo{
@@ -36,7 +37,7 @@ func getMongoSession() (*mgo.Session, error) {
     return session.Copy(), nil
 }
 
-// CreateEshuResource will store the payable request into the database
+// CreateEshuResource will store the eshu file details into the database
 func (m *Mongo) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
 
 
@@ -56,7 +57,7 @@ func (m *Mongo) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
     
 }
 
-// PaymentTransactionResource will store the payable request into the database
+// PaymentTransactionResource will store the payment_transaction file details into the database
 func (m *Mongo) CreatePaymentTransactionsResource(paymentTransactionsResource *models.PaymentTransactionsResourceDao) error {
     mongoSession, err := getMongoSession()
     if err != nil {
