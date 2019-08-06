@@ -47,11 +47,7 @@ func (m *Mongo) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
     }
     defer mongoSession.Close()
 
-    cfg, err := config.Get()
-    if err != nil {
-        return fmt.Errorf("error getting config: %s", err)
-    }
-    c := mongoSession.DB(cfg.Database).C(cfg.ProductsCollection)
+    c := mongoSession.DB(m.Config.Database).C(m.Config.ProductsCollection)
 
     return c.Insert(eshuResource)
     
@@ -65,11 +61,8 @@ func (m *Mongo) CreatePaymentTransactionsResource(paymentTransactionsResource *m
     }
     defer mongoSession.Close()
 
-    cfg, err := config.Get()
-    if err != nil {
-        return fmt.Errorf("error getting config: %s", err)
-    }
-    c := mongoSession.DB(cfg.Database).C(cfg.TransactionsCollection)
+
+    c := mongoSession.DB(m.Config.Database).C(m.Config.TransactionsCollection)
 
     return c.Insert(paymentTransactionsResource)
    

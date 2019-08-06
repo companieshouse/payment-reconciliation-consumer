@@ -57,7 +57,7 @@ func (c *Config) GetProductMap() (*ProductMap, error) {
     if err != nil {
         return nil, err
     }
-    
+
     err = yaml.Unmarshal(yamlFile, &productMap)
     if err != nil {
         return nil, err
