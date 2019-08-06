@@ -8,7 +8,7 @@ import (
     "testing"
 )
 const testData = `{
-         "amount": "15.00",
+    "amount": "15.00",
     "completed_at": "2019-08-05T13:04:34.695Z",
     "created_at": "2019-08-05T13:04:05.737Z",
     "created_by": {
