@@ -27,6 +27,7 @@ type Config struct {
     ProductsCollection             string      `env:"MONGODB_PAYMENT_REC_PRODUCTS_COLLECTION"       flag:"mongodb-payment-rec-products-collection"      flagDesc:"MongoDB collection for payment products data"`
 }
 
+
 type ProductMap struct {
     Codes map[string]int `yaml:"product_code"`
 }
@@ -45,8 +46,12 @@ type ServiceConfig struct {
 func (c *Config) Namespace() string {
     return "payment-reconciliation-consumer"
 }
+var productMap *ProductMap
 
 func (c *Config) GetProductMap() (*ProductMap, error) {
+    if productMap !=nil {
+        return productMap, nil
+    }
     filename, _ := filepath.Abs("config/productCode.yml")
     yamlFile, err := ioutil.ReadFile(filename)
     if err != nil {
