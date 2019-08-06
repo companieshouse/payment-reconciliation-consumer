@@ -51,7 +51,7 @@ func (m *Mongo) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
     if err != nil {
         return fmt.Errorf("error getting config: %s", err)
     }
-    c := mongoSession.DB(cfg.Database).C(cfg.TransactionsCollection)
+    c := mongoSession.DB(cfg.Database).C(cfg.ProductsCollection)
 
     return c.Insert(eshuResource)
     
@@ -69,7 +69,7 @@ func (m *Mongo) CreatePaymentTransactionsResource(paymentTransactionsResource *m
     if err != nil {
         return fmt.Errorf("error getting config: %s", err)
     }
-    c := mongoSession.DB(cfg.Database).C(cfg.ProductsCollection)
+    c := mongoSession.DB(cfg.Database).C(cfg.TransactionsCollection)
 
     return c.Insert(paymentTransactionsResource)
    
