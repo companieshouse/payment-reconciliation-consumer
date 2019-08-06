@@ -180,7 +180,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                 if message.Offset >= svc.InitialOffset {
                     log.Info("Received message from Payment Service. Attempting reconciliation...")
 
-                    // Get the payment session first
+                    // GetPayment the payment session first
                     var pp data.PaymentProcessed
                     paymentProcessedSchema := &avro.Schema{
                         Definition: svc.PpSchema,
@@ -193,17 +193,17 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                         continue
                     }
 
-                    //Create Get payment session URL
+                    //Create GetPayment payment session URL
                     getPaymentURL := svc.PaymentsAPIURL + "/payments/" + pp.ResourceURI
                     log.Info("Payment URL : " + getPaymentURL)
-                    //Call Get payment session from payments API
-                    paymentResponse,statusCode, err := payment.Get(getPaymentURL, svc.Client, svc.ApiKey)
+                    //Call GetPayment payment session from payments API
+                    paymentResponse,statusCode, err := payment.GetPayment(getPaymentURL, svc.Client, svc.ApiKey)
                     if err != nil {
                         log.Error(err, log.Data{"message_offset": message.Offset})
                         svc.HandleError(err, message.Offset, &paymentResponse)
                     }
                     log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse, "status_code":statusCode})
-                    //Get Cost from payment session Cost array
+                    //GetPayment Cost from payment session Cost array
                     cost, err := paymentResponse.GetCost("cic-report")
                     if err != nil {
                         log.Error(err, log.Data{"message_offset": message.Offset})
@@ -212,11 +212,11 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                     log.Info("Cost : ", log.Data{"cost": cost})
                     productCode := svc.ProductMap.Codes[cost.ProductType]
 
-                    //Create Get payment URL
+                    //Create GetPayment payment URL
                     getPaymentDetailsURL := svc.PaymentsAPIURL + "/private/payments/" + pp.ResourceURI + "/payment-details"
                     log.Info("Payment Details URL : " + getPaymentDetailsURL)
-                    //Call Get payment details from payments API
-                    paymentDetails,statusCode, err := payment.GetDetails(getPaymentDetailsURL, svc.Client, svc.ApiKey)
+                    //Call GetPayment payment details from payments API
+                    paymentDetails,statusCode, err := payment.GetPaymentDetails(getPaymentDetailsURL, svc.Client, svc.ApiKey)
                     if err != nil {
                         log.Error(err, log.Data{"message_offset": message.Offset})
                         svc.HandleError(err, message.Offset, &paymentDetails)

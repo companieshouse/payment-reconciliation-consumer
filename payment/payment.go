@@ -24,8 +24,8 @@ func (e *InvalidPaymentAPIResponse) Error() string {
 
 // ----------------------------------------------------------------------------
 
-// Get executes a GET request to the specified URL
-func Get(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentResponse,int, error) {
+// GetPayment executes a GET request to payment URL
+func GetPayment(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentResponse,int, error) {
     var p data.PaymentResponse
 
     req, err := http.NewRequest("GET", paymentAPIURL, nil)
@@ -59,7 +59,8 @@ func Get(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.Pay
 
     return p,res.StatusCode, nil
 }
-func GetDetails(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentDetailsResponse,int, error) {
+// GetPaymentDetails executes a GET request to payment Details URL
+func GetPaymentDetails(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentDetailsResponse,int, error) {
     var p data.PaymentDetailsResponse
 
     req, err := http.NewRequest("GET", paymentAPIURL, nil)

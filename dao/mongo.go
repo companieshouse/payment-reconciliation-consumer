@@ -36,21 +36,21 @@ func getMongoSession() (*mgo.Session, error) {
     return session.Copy(), nil
 }
 
-// EshuResource will store the payable request into the database
+// CreateEshuResource will store the payable request into the database
 func (m *Mongo) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
 
 
-    eshuSession, err := getMongoSession()
+    mongoSession, err := getMongoSession()
     if err != nil {
         return err
     }
-    defer eshuSession.Close()
+    defer mongoSession.Close()
 
     cfg, err := config.Get()
     if err != nil {
         return fmt.Errorf("error getting config: %s", err)
     }
-    c := eshuSession.DB(cfg.Database).C(cfg.TransactionsCollection)
+    c := mongoSession.DB(cfg.Database).C(cfg.TransactionsCollection)
 
     return c.Insert(eshuResource)
     
@@ -58,17 +58,17 @@ func (m *Mongo) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
 
 // PaymentTransactionResource will store the payable request into the database
 func (m *Mongo) CreatePaymentTransactionsResource(paymentTransactionsResource *models.PaymentTransactionsResourceDao) error {
-    paymentTransactionsSession, err := getMongoSession()
+    mongoSession, err := getMongoSession()
     if err != nil {
         return err
     }
-    defer paymentTransactionsSession.Close()
+    defer mongoSession.Close()
 
     cfg, err := config.Get()
     if err != nil {
         return fmt.Errorf("error getting config: %s", err)
     }
-    c := paymentTransactionsSession.DB(cfg.Database).C(cfg.ProductsCollection)
+    c := mongoSession.DB(cfg.Database).C(cfg.ProductsCollection)
 
     return c.Insert(paymentTransactionsResource)
    
