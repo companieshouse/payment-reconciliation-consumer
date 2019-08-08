@@ -56,7 +56,6 @@ func getDefaultSchema() string {
 }
 
 type MockProducer struct {
-
 	sarama.SyncProducer
 }
 
@@ -65,7 +64,7 @@ func (m MockProducer) Close() error {
 	return nil
 }
 
-type MockConsumer struct {}
+type MockConsumer struct{}
 
 func (m MockConsumer) Close() error {
 
@@ -89,7 +88,7 @@ func (m MockConsumer) Errors() <-chan error {
 	return nil
 }
 
-func TestStart(t *testing.T)  {
+func TestStart(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
@@ -122,12 +121,12 @@ func TestStart(t *testing.T)  {
 					Costs: []data.Cost{cost},
 				}
 
-				mockPayment.EXPECT().GetPayment(paymentsAPIUrl + "/payments/" + paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+				mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
 
 				Convey("And the payment details corresponding to the message are fetched successfully", func() {
 
 					var pdr data.PaymentDetailsResponse
-					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl + "/private/payments/" + paymentResourceID + "/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
+					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
 
 					Convey("Then an Eshu resource is constructed", func() {
 
@@ -190,7 +189,7 @@ func TestStart(t *testing.T)  {
 					Costs: []data.Cost{cost},
 				}
 
-				mockPayment.EXPECT().GetPayment(paymentsAPIUrl + "/payments/" + paymentResourceID, svc.Client, apiKey).DoAndReturn(func(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentResponse, int, error) {
+				mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).DoAndReturn(func(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentResponse, int, error) {
 
 					endConsumerProcess(svc, c)
 					return pr, 200, nil
@@ -198,7 +197,7 @@ func TestStart(t *testing.T)  {
 
 				Convey("But payment details are never fetched", func() {
 
-					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl + "/private/payments/" + paymentResourceID + "/payment-details", svc.Client, apiKey).Times(0)
+					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Times(0)
 
 					Convey("And no Eshu resource is ever constructed", func() {
 
