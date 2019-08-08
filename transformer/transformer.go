@@ -6,18 +6,22 @@ import (
 	"github.com/companieshouse/payment-reconciliation-consumer/models"
 )
 
+// Transformer provides an interface by which to transform payment models to reconciliation entities
 type Transformer interface {
 	GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) (models.EshuResourceDao, error)
 	GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) models.PaymentTransactionsResourceDao
 }
 
+// Transform implements the Transformer interface
 type Transform struct {}
 
+// New returns a new implementation of the Transformer interface
 func New() *Transform {
 
 	return &Transform{}
 }
 
+// GetEshuResource transforms payment data into an Eshu resource entity
 func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) (models.EshuResourceDao, error) {
 
 	var eshuResource models.EshuResourceDao
@@ -38,6 +42,7 @@ func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails
 	return eshuResource, nil
 }
 
+// GetTransactionResource transforms payment data into a payment transaction resource entity
 func (t *Transform) GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) models.PaymentTransactionsResourceDao  {
 
 	return models.PaymentTransactionsResourceDao{

@@ -34,7 +34,7 @@ type Service struct {
     Retry           *resilience.ServiceRetry
     IsErrorConsumer bool
     BrokerAddr      []string
-    ApiKey          string
+    APIKey          string
     PaymentsAPIURL  string
     DAO             dao.DAO
     TranCollection  string
@@ -133,7 +133,7 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
         Retry:           retry,
         IsErrorConsumer: cfg.IsErrorConsumer,
         BrokerAddr:      cfg.BrokerAddr,
-        ApiKey:          cfg.ChsAPIKey,
+        APIKey:          cfg.ChsAPIKey,
         PaymentsAPIURL:  cfg.PaymentsAPIURL,
         DAO:             dao.New(cfg),
         TranCollection:  cfg.TransactionsCollection,
@@ -202,7 +202,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                     log.Info("Payment URL : " + getPaymentURL)
 
                     //Call GetPayment payment session from payments API
-                    paymentResponse, statusCode, err := svc.Payments.GetPayment(getPaymentURL, svc.Client, svc.ApiKey)
+                    paymentResponse, statusCode, err := svc.Payments.GetPayment(getPaymentURL, svc.Client, svc.APIKey)
                     if err != nil {
                         log.Error(err, log.Data{"message_offset": message.Offset})
                         svc.HandleError(err, message.Offset, &paymentResponse)
@@ -216,7 +216,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                         log.Info("Payment Details URL : " + getPaymentDetailsURL)
 
                         //Call GetPayment payment details from payments API
-                        paymentDetails, statusCode, err := svc.Payments.GetPaymentDetails(getPaymentDetailsURL, svc.Client, svc.ApiKey)
+                        paymentDetails, statusCode, err := svc.Payments.GetPaymentDetails(getPaymentDetailsURL, svc.Client, svc.APIKey)
                         if err != nil {
                             log.Error(err, log.Data{"message_offset": message.Offset})
                             svc.HandleError(err, message.Offset, &paymentDetails)

@@ -17,9 +17,9 @@ import (
 	"testing"
 )
 
-const paymentsApiUrl = "paymentsApiUrl"
+const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
-const paymentResourceId = "paymentResourceId"
+const paymentResourceID = "paymentResourceID"
 
 func createMockService(mockPayment *payment.MockFetcher, mockTransformer *transformer.MockTransformer, mockDao *dao.MockDAO) *Service {
 
@@ -29,8 +29,8 @@ func createMockService(mockPayment *payment.MockFetcher, mockTransformer *transf
 		Payments:       mockPayment,
 		Transformer:    mockTransformer,
 		DAO:            mockDao,
-		PaymentsAPIURL: paymentsApiUrl,
-		ApiKey:         apiKey,
+		PaymentsAPIURL: paymentsAPIUrl,
+		APIKey:         apiKey,
 		Client:         &http.Client{},
 		StopAtOffset:   int64(-1),
 	}
@@ -77,7 +77,7 @@ func (m MockConsumer) Messages() <-chan *sarama.ConsumerMessage {
 	out := make(chan *sarama.ConsumerMessage)
 	go func() {
 		out <- &sarama.ConsumerMessage{
-			Value: []byte("\"" + paymentResourceId + "\""),
+			Value: []byte("\"" + paymentResourceID + "\""),
 		}
 		close(out)
 	}()
@@ -122,12 +122,12 @@ func TestStart(t *testing.T)  {
 					Costs: []data.Cost{cost},
 				}
 
-				mockPayment.EXPECT().GetPayment(paymentsApiUrl + "/payments/" + paymentResourceId, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+				mockPayment.EXPECT().GetPayment(paymentsAPIUrl + "/payments/" + paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
 
 				Convey("And the payment details corresponding to the message are fetched successfully", func() {
 
 					var pdr data.PaymentDetailsResponse
-					mockPayment.EXPECT().GetPaymentDetails(paymentsApiUrl + "/private/payments/" + paymentResourceId + "/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
+					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl + "/private/payments/" + paymentResourceID + "/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
 
 					Convey("Then an Eshu resource is constructed", func() {
 
@@ -190,7 +190,7 @@ func TestStart(t *testing.T)  {
 					Costs: []data.Cost{cost},
 				}
 
-				mockPayment.EXPECT().GetPayment(paymentsApiUrl + "/payments/" + paymentResourceId, svc.Client, apiKey).DoAndReturn(func(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentResponse, int, error) {
+				mockPayment.EXPECT().GetPayment(paymentsAPIUrl + "/payments/" + paymentResourceID, svc.Client, apiKey).DoAndReturn(func(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentResponse, int, error) {
 
 					endConsumerProcess(svc, c)
 					return pr, 200, nil
@@ -198,7 +198,7 @@ func TestStart(t *testing.T)  {
 
 				Convey("But payment details are never fetched", func() {
 
-					mockPayment.EXPECT().GetPaymentDetails(paymentsApiUrl + "/private/payments/" + paymentResourceId + "/payment-details", svc.Client, apiKey).Times(0)
+					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl + "/private/payments/" + paymentResourceID + "/payment-details", svc.Client, apiKey).Times(0)
 
 					Convey("And no Eshu resource is ever constructed", func() {
 

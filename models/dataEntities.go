@@ -1,11 +1,7 @@
 package models
 
-import (
-    "go.mongodb.org/mongo-driver/bson/primitive"
-)
-
+// EshuResourceDao represents the Eshu data structure
 type EshuResourceDao struct {
-    ID            primitive.ObjectID `bson:"_id"`
     PaymentRef    string             `bson:"paymentRef"`
     ProductCode   int                `bson:"productCode"`
     CompanyNumber string             `bson:"companyNumber"`
@@ -13,8 +9,8 @@ type EshuResourceDao struct {
     MadeUpdate    string             `bson:"madeUpdate"`
 }
 
+// PaymentTransactionsResourceDao represents the payment transaction data structure
 type PaymentTransactionsResourceDao struct {
-    ID                primitive.ObjectID `bson:"_id"`
     TransactionID     string             `bson:"transactionID"`
     TransactionDate   string             `bson:"transactionDate"`
     Email             string             `bson:"email"`

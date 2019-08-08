@@ -22,6 +22,7 @@ type PaymentResponse struct {
     Kind                    string       `json:"kind"`
 }
 
+// Cost represents a cost data structure
 type Cost struct {
     Amount                  string            `json:"amount"`
     AvailablePaymentMethods []string          `json:"available_payment_methods"`
@@ -39,10 +40,10 @@ type PaymentLinks struct {
     Self     string `json:"self" validate:"required"`
 }
 
-// CreatedBy data
+// Created data
 type Created struct {
     Email    string `json:"email"`
     Forename string `json:"forename"`
-    Id       string `json:"id"`
+    ID       string `json:"id"`
     Surname  string `json:"surname"`
 }
