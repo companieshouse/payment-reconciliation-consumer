@@ -2,25 +2,25 @@ package models
 
 // EshuResourceDao represents the Eshu data structure
 type EshuResourceDao struct {
-    PaymentRef    string             `bson:"paymentRef"`
-    ProductCode   int                `bson:"productCode"`
-    CompanyNumber string             `bson:"companyNumber"`
-    FilingDate    string             `bson:"filingDate"`
-    MadeUpdate    string             `bson:"madeUpdate"`
+    PaymentRef    string             `bson:"payment_reference"`
+    ProductCode   int                `bson:"product_code"`
+    CompanyNumber string             `bson:"company_number"`
+    FilingDate    string             `bson:"filing_date"`
+    MadeUpdate    string             `bson:"made_up_date"`
 }
 
 // PaymentTransactionsResourceDao represents the payment transaction data structure
 type PaymentTransactionsResourceDao struct {
-    TransactionID     string             `bson:"transactionID"`
-    TransactionDate   string             `bson:"transactionDate"`
+    TransactionID     string             `bson:"transaction_id"`
+    TransactionDate   string             `bson:"transaction_date"`
     Email             string             `bson:"email"`
-    PaymentMethod     string             `bson:"paymentMethod"`
+    PaymentMethod     string             `bson:"payment_method"`
     Amount            string             `bson:"amount"`
-    CompanyNumber     string             `bson:"companyNumber"`
-    TransactionType   string             `bson:"transactionType"`
-    OrderReference    string             `bson:"orderReference"`
+    CompanyNumber     string             `bson:"company_number"`
+    TransactionType   string             `bson:"transaction_type"`
+    OrderReference    string             `bson:"order_reference"`
     Status            string             `bson:"status"`
-    UserID            string             `bson:"userID"`
-    OriginalReference string             `bson:"originalReference"`
-    DisputeDetails    string             `bson:"disputeDetails"`
+    UserID            string             `bson:"user_id"`
+    OriginalReference string             `bson:"original_reference"`
+    DisputeDetails    string             `bson:"dispute_details"`
 }
