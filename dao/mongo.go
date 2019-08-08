@@ -21,50 +21,50 @@ func New(cfg *config.Config) *Mongo {
         Config: cfg,
     }
 }
+
 // getMongoSession gets a MongoDB Session
 func getMongoSession() (*mgo.Session, error) {
+
     if session == nil {
+
         var err error
+
         cfg, err := config.Get()
         if err != nil {
             return nil, fmt.Errorf("error getting config: %s", err)
         }
+
         session, err = mgo.Dial(cfg.MongoDBURL)
         if err != nil {
             return nil, fmt.Errorf("error dialling into mongodb: %s", err)
         }
     }
+
     return session.Copy(), nil
 }
 
 // CreateEshuResource will store the eshu file details into the database
 func (m *Mongo) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
 
-
     mongoSession, err := getMongoSession()
     if err != nil {
         return err
     }
     defer mongoSession.Close()
 
-    c := mongoSession.DB(m.Config.Database).C(m.Config.ProductsCollection)
-
-    return c.Insert(eshuResource)
+    return mongoSession.DB(m.Config.Database).C(m.Config.ProductsCollection).Insert(eshuResource)
     
 }
 
-// PaymentTransactionResource will store the payment_transaction file details into the database
+// CreatePaymentTransactionsResource will store the payment_transaction file details into the database
 func (m *Mongo) CreatePaymentTransactionsResource(paymentTransactionsResource *models.PaymentTransactionsResourceDao) error {
+
     mongoSession, err := getMongoSession()
     if err != nil {
         return err
     }
     defer mongoSession.Close()
 
-
-    c := mongoSession.DB(m.Config.Database).C(m.Config.TransactionsCollection)
-
-    return c.Insert(paymentTransactionsResource)
-   
+    return mongoSession.DB(m.Config.Database).C(m.Config.TransactionsCollection).Insert(paymentTransactionsResource)
 }
 

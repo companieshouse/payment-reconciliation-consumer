@@ -7,6 +7,7 @@ import (
     "net/url"
     "testing"
 )
+
 const paymentTestData = `{
     "amount": "15.00",
     "completed_at": "2019-08-05T13:04:34.695Z",
@@ -55,56 +56,70 @@ const paymentDetailsTestData = `{
 }`
 
 func createMockClient(hasResponseBody bool, status int, testData string) *http.Client {
+
     mockStreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
         if hasResponseBody {
             w.Write([]byte(testData))
         }
         w.WriteHeader(status)
     }))
+
     transport := &http.Transport{
         Proxy: func(req *http.Request) (*url.URL, error) {
             return url.Parse(mockStreamServer.URL)
         },
     }
+
     httpClient := &http.Client{Transport: transport}
+
     return httpClient
 }
+
 func TestUnitGetPayment(t *testing.T) {
+
+    p := Fetch{}
+
     Convey("test successful get request of payment ", t, func() {
-        b, statusCode, err := GetPayment("http://test-url.com", createMockClient(true, 200, paymentTestData), "")
+        b, statusCode, err := p.GetPayment("http://test-url.com", createMockClient(true, 200, paymentTestData), "")
         So(err, ShouldBeNil)
         So(statusCode, ShouldEqual, 200)
         So(b, ShouldNotBeEmpty)
     })
+
     Convey("test error returned when client throws error", t, func() {
-        _, statusCode, err := GetPayment("test-url.com", createMockClient(false, 500, paymentTestData), "")
+        _, statusCode, err := p.GetPayment("test-url.com", createMockClient(false, 500, paymentTestData), "")
         So(err, ShouldNotBeNil)
         So(statusCode, ShouldEqual, 500)
     })
+
     Convey("test error returned when invalid http status returned", t, func() {
-        _, statusCode, err := GetPayment("http://test-url.com", createMockClient(false, 404, paymentTestData), "")
+        _, statusCode, err := p.GetPayment("http://test-url.com", createMockClient(false, 404, paymentTestData), "")
         So(err, ShouldNotBeNil)
         So(statusCode, ShouldEqual, 404)
     })
-
 }
+
 func TestUnitGetDetailsPayment(t *testing.T) {
+
+    p := Fetch{}
+
     Convey("test successful get request of payment ", t, func() {
-        b, statusCode, err := GetPaymentDetails("http://test-url.com", createMockClient(true, 200,paymentDetailsTestData), "")
+        b, statusCode, err := p.GetPaymentDetails("http://test-url.com", createMockClient(true, 200, paymentDetailsTestData), "")
         So(err, ShouldBeNil)
         So(statusCode, ShouldEqual, 200)
         So(b, ShouldNotBeEmpty)
     })
+
     Convey("test error returned when client throws error", t, func() {
-        _, statusCode, err := GetPaymentDetails("test-url.com", createMockClient(false, 500,paymentDetailsTestData), "")
+        _, statusCode, err := p.GetPaymentDetails("test-url.com", createMockClient(false, 500, paymentDetailsTestData), "")
         So(err, ShouldNotBeNil)
         So(statusCode, ShouldEqual, 500)
     })
+
     Convey("test error returned when invalid http status returned", t, func() {
-        _, statusCode, err := GetPaymentDetails("http://test-url.com", createMockClient(false, 404,paymentDetailsTestData), "")
+        _, statusCode, err := p.GetPaymentDetails("http://test-url.com", createMockClient(false, 404, paymentDetailsTestData), "")
         So(err, ShouldNotBeNil)
         So(statusCode, ShouldEqual, 404)
     })
-
 }
 

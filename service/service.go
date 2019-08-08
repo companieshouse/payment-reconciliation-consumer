@@ -3,7 +3,7 @@ package service
 import (
     "fmt"
     "github.com/companieshouse/payment-reconciliation-consumer/dao"
-    "github.com/companieshouse/payment-reconciliation-consumer/models"
+    "github.com/companieshouse/payment-reconciliation-consumer/transformer"
     "net/http"
     "os"
     "sync"
@@ -40,6 +40,9 @@ type Service struct {
     TranCollection  string
     ProdCollection  string
     ProductMap      *config.ProductMap
+    Payments        payment.Fetcher
+    Transformer     transformer.Transformer
+    StopAtOffset    int64
 }
 
 // New creates a new instance of service with a given consumerGroup name,
@@ -56,7 +59,7 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 
     appName := cfg.Namespace()
 
-    productMap, err := cfg.GetProductMap()
+    productMap, err := config.GetProductMap()
     if err != nil {
         log.Error(fmt.Errorf("error initialising productMap: %s", err), nil)
         return nil, err
@@ -110,7 +113,15 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
         return nil, err
     }
 
-
+    // If we're an error consumer, then capture the tail of the topic, and only consume up to that offset.
+    stopAtOffset := int64(-1)
+    if cfg.IsErrorConsumer {
+        stopAtOffset, err = client.TopicOffset(cfg.BrokerAddr, topicName)
+        if err != nil {
+            log.Error(err, log.Data{"topic": topicName})
+        }
+        log.Info("error queue consumer will stop when backlog offset reached", log.Data{"backlog_offset": stopAtOffset})
+    }
 
     return &Service{
         Consumer:        c,
@@ -128,6 +139,9 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
         TranCollection:  cfg.TransactionsCollection,
         ProdCollection:  cfg.ProductsCollection,
         ProductMap:      productMap,
+        Payments:        payment.New(),
+        Transformer:     transformer.New(),
+        StopAtOffset:    stopAtOffset,
     }, nil
 
 }
@@ -135,26 +149,16 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 // Start begins the service - Messages are consumed from the payment-processed
 // topic
 func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
-    log.Info("service starting, consuming from " + svc.Topic + " topic")
+    log.Info("service starting, consuming from the " + svc.Topic + " topic")
 
-    // If we're an error consumer, then capture the tail of the topic, and only consume up to that offset.
-    stopAtOffset := int64(-1)
     var err error
-    if svc.IsErrorConsumer {
-        stopAtOffset, err = client.TopicOffset(svc.BrokerAddr, svc.Topic)
-        if err != nil {
-            log.Error(err, log.Data{"topic": svc.Topic})
-        }
-        log.Info("error queue consumer will stop when backlog offset reached", log.Data{"backlog_offset": stopAtOffset})
-    }
-
     var message *sarama.ConsumerMessage
 
     // We want to stop the processing of the service if consuming from an
     // error queue if all messages that were initially in the queue have
     // been cleared using the stopAtOffset
     running := true
-    for running && (stopAtOffset == -1 || message == nil || message.Offset < stopAtOffset) {
+    for running && (svc.StopAtOffset == -1 || message == nil || message.Offset < svc.StopAtOffset) {
 
         if message != nil {
             // Commit the message we've just been processing before starting the next
@@ -196,71 +200,54 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
                     //Create GetPayment payment session URL
                     getPaymentURL := svc.PaymentsAPIURL + "/payments/" + pp.ResourceURI
                     log.Info("Payment URL : " + getPaymentURL)
+
                     //Call GetPayment payment session from payments API
-                    paymentResponse,statusCode, err := payment.GetPayment(getPaymentURL, svc.Client, svc.ApiKey)
+                    paymentResponse, statusCode, err := svc.Payments.GetPayment(getPaymentURL, svc.Client, svc.ApiKey)
                     if err != nil {
                         log.Error(err, log.Data{"message_offset": message.Offset})
                         svc.HandleError(err, message.Offset, &paymentResponse)
                     }
-                    log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse, "status_code":statusCode})
-                    //GetPayment Cost from payment session Cost array
-                    cost, err := paymentResponse.GetCost("cic-report")
-                    if err != nil {
-                        log.Error(err, log.Data{"message_offset": message.Offset})
-                        svc.HandleError(err, message.Offset, &paymentResponse)
-                    }
-                    log.Info("Cost : ", log.Data{"cost": cost})
-                    productCode := svc.ProductMap.Codes[cost.ProductType]
+                    log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse, "status_code": statusCode})
 
-                    //Create GetPayment payment URL
-                    getPaymentDetailsURL := svc.PaymentsAPIURL + "/private/payments/" + pp.ResourceURI + "/payment-details"
-                    log.Info("Payment Details URL : " + getPaymentDetailsURL)
-                    //Call GetPayment payment details from payments API
-                    paymentDetails,statusCode, err := payment.GetPaymentDetails(getPaymentDetailsURL, svc.Client, svc.ApiKey)
-                    if err != nil {
-                        log.Error(err, log.Data{"message_offset": message.Offset})
-                        svc.HandleError(err, message.Offset, &paymentDetails)
-                    }
-                    log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails,"status_code":statusCode})
+                    if paymentResponse.Costs[0].ClassOfPayment[0] == "data-maintenance" {
 
-                    //Build Eshu database object
-                    eshu := models.EshuResourceDao{
-                        PaymentRef:    paymentDetails.PaymentID,
-                        ProductCode:   productCode,
-                        CompanyNumber: paymentResponse.CompanyNumber,
-                        FilingDate:    "",
-                        MadeUpdate:    "",
-                    }
+                        //Create GetPayment payment URL
+                        getPaymentDetailsURL := svc.PaymentsAPIURL + "/private/payments/" + pp.ResourceURI + "/payment-details"
+                        log.Info("Payment Details URL : " + getPaymentDetailsURL)
 
-                    //Add Eshu object to the Database
-                    err = svc.DAO.CreateEshuResource(&eshu)
-                    if err != nil {
-                        log.Error(err, log.Data{"message": "failed to create eshu request in database",
-                            "data":       eshu})
-                        svc.HandleError(err, message.Offset, &eshu)
-                    }
+                        //Call GetPayment payment details from payments API
+                        paymentDetails, statusCode, err := svc.Payments.GetPaymentDetails(getPaymentDetailsURL, svc.Client, svc.ApiKey)
+                        if err != nil {
+                            log.Error(err, log.Data{"message_offset": message.Offset})
+                            svc.HandleError(err, message.Offset, &paymentDetails)
+                        }
+                        log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
 
-                    //Build Payment Transaction database object
-                    payTrans := models.PaymentTransactionsResourceDao{
-                        TransactionID:     paymentDetails.PaymentID,
-                        TransactionDate:   paymentDetails.TransactionDate,
-                        Email:             paymentResponse.CreatedBy.Email,
-                        PaymentMethod:     paymentResponse.PaymentMethod,
-                        Amount:            paymentResponse.Amount,
-                        CompanyNumber:     paymentResponse.CompanyNumber,
-                        TransactionType:   "Immediate bill",
-                        OrderReference:    paymentResponse.Reference,
-                        Status:            paymentDetails.PaymentStatus,
-                        UserID:            "system",
-                        OriginalReference: "",
-                        DisputeDetails:    ""}
+                        //Get Eshu resource
+                        eshu, err := svc.Transformer.GetEshuResource(paymentResponse, paymentDetails)
+                        if err != nil {
+                            log.Error(err, log.Data{"message_offset": message.Offset})
+                            svc.HandleError(err, message.Offset, &paymentDetails)
+                        }
 
-                    //Add Payment Transaction to the Database
-                    err = svc.DAO.CreatePaymentTransactionsResource(&payTrans)
-                    if err != nil {
-                        log.Error(err, log.Data{"message": "failed to create production request in database",
-                            "data":       payTrans})
-                        svc.HandleError(err, message.Offset, &payTrans)
+                        //Add Eshu object to the Database
+                        err = svc.DAO.CreateEshuResource(&eshu)
+                        if err != nil {
+                            log.Error(err, log.Data{"message": "failed to create eshu request in database",
+                                "data": eshu})
+                            svc.HandleError(err, message.Offset, &eshu)
+                        }
+
+                        //Build Payment Transaction database object
+                        payTrans := svc.Transformer.GetTransactionResource(paymentResponse, paymentDetails)
+
+                        //Add Payment Transaction to the Database
+                        err = svc.DAO.CreatePaymentTransactionsResource(&payTrans)
+                        if err != nil {
+                            log.Error(err, log.Data{"message": "failed to create production request in database",
+                                "data": payTrans})
+                            svc.HandleError(err, message.Offset, &payTrans)
+                        }
                     }
                 }
             }
@@ -292,6 +279,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 //Shutdown closes all producers and consumers for this service
 func (svc *Service) Shutdown(topic string) {
+
     log.Info("Shutting down service ", log.Data{"topic": topic})
 
     log.Info("Closing producer", log.Data{"topic": topic})

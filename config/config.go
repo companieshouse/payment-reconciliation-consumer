@@ -27,7 +27,7 @@ type Config struct {
     ProductsCollection             string      `env:"MONGODB_PAYMENT_REC_PRODUCTS_COLLECTION"       flag:"mongodb-payment-rec-products-collection"      flagDesc:"MongoDB collection for payment products data"`
 }
 
-
+// ProductMap contains a map of product codes
 type ProductMap struct {
     Codes map[string]int `yaml:"product_code"`
 }
@@ -46,13 +46,21 @@ type ServiceConfig struct {
 func (c *Config) Namespace() string {
     return "payment-reconciliation-consumer"
 }
+
 var productMap *ProductMap
-// Get the appropriate product code from the yaml file.
-func (c *Config) GetProductMap() (*ProductMap, error) {
-    if productMap !=nil {
+
+// GetProductMap fetches a map of product codes
+func GetProductMap() (*ProductMap, error) {
+
+    if productMap != nil {
         return productMap, nil
     }
-    filename, _ := filepath.Abs("config/productCode.yml")
+
+    filename, err := filepath.Abs("config/productCode.yml")
+    if err != nil {
+        return nil, err
+    }
+
     yamlFile, err := ioutil.ReadFile(filename)
     if err != nil {
         return nil, err
@@ -62,6 +70,7 @@ func (c *Config) GetProductMap() (*ProductMap, error) {
     if err != nil {
         return nil, err
     }
+
     return productMap, nil
 }
 
@@ -69,9 +78,11 @@ var cfg *Config
 
 // Get configures the application and returns the configuration
 func Get() (*Config, error) {
+
     if cfg != nil {
         return cfg, nil
     }
+
     cfg = &Config{
         PaymentProcessedTopic:          "",
         PaymentReconciliationGroupName: "payment-reconciliation-consumer-group",
@@ -79,9 +90,11 @@ func Get() (*Config, error) {
         RetryThrottleRate:              10,
         MaxRetryAttempts:               6,
     }
+
     err := gofigure.Gofigure(cfg)
     if err != nil {
         return nil, err
     }
+
     return cfg, nil
 }

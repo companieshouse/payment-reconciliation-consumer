@@ -1,8 +1,6 @@
 package data
 
 import (
-    "errors"
-    "fmt"
     "time"
 )
 
@@ -47,13 +45,4 @@ type Created struct {
     Forename string `json:"forename"`
     Id       string `json:"id"`
     Surname  string `json:"surname"`
-}
-
-func (p PaymentResponse) GetCost(s string) (Cost, error) {
-    for _, element := range p.Costs {
-        if element.DescriptionIdentifier == s {
-            return element, nil
-        }
-    }
-    return Cost{}, errors.New(fmt.Sprintf("No cost found for: [%s]", s))
 }
