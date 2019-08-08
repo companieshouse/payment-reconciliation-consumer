@@ -56,7 +56,7 @@ func GetProductMap() (*ProductMap, error) {
 		return productMap, nil
 	}
 
-	filename, err := filepath.Abs("assets/product_dode.yml")
+	filename, err := filepath.Abs("assets/product_code.yml")
 	if err != nil {
 		return nil, err
 	}
