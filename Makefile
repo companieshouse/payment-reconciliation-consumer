@@ -57,7 +57,8 @@ package: deps
 	$(eval tmpdir:=$(shell mktemp -d build-XXXXXXXXXX))
 	cp ./$(bin) $(tmpdir)/$(bin)
 	cp ./start.sh $(tmpdir)/start.sh
-	cd $(tmpdir) && zip -r ../$(bin)-$(version).zip $(bin) start.sh
+	cp -r ./assets  $(tmpdir)/assets
+	cd $(tmpdir) && zip -r ../$(bin)-$(version).zip $(bin) start.sh assets
 	rm -rf $(tmpdir)
 
 .PHONY: dist
