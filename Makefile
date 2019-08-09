@@ -1,5 +1,4 @@
 bin     := payment-reconciliation-consumer
-version := "unversioned"
 
 lint_output  := lint.txt
 
@@ -38,7 +37,10 @@ clean:
 .PHONY: package
 package:
 ifndef version
-	$(error No version given. Aborting)
+	echo "no version defined, using default of unversioned"
+	$(eval version:=unversioned)
+else
+	echo "using version defined as $(version) from environment"
 endif
 	$(eval tmpdir:=$(shell mktemp -d build-XXXXXXXXXX))
 	cp ./$(bin) $(tmpdir)/$(bin)
