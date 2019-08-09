@@ -1,5 +1,4 @@
 bin     := payment-reconciliation-consumer
-version := "unversioned"
 
 lint_output  := lint.txt
 
@@ -18,7 +17,7 @@ deps:
 build: deps fmt $(bin)
 
 $(bin):
-	go build -o ./$(bin)
+	CGO_ENABLED=0 go build -o ./$(bin)
 
 .PHONY: test-deps
 test-deps: deps
@@ -38,7 +37,8 @@ clean:
 .PHONY: package
 package:
 ifndef version
-	$(error No version given. Aborting)
+	echo "no version defined, using default of unversioned"
+	$(eval version:=unversioned)
 endif
 	$(eval tmpdir:=$(shell mktemp -d build-XXXXXXXXXX))
 	cp ./$(bin) $(tmpdir)/$(bin)
