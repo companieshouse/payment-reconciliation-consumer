@@ -13,7 +13,7 @@ type Transformer interface {
 }
 
 // Transform implements the Transformer interface
-type Transform struct {}
+type Transform struct{}
 
 // New returns a new implementation of the Transformer interface
 func New() *Transform {
@@ -43,7 +43,7 @@ func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails
 }
 
 // GetTransactionResource transforms payment data into a payment transaction resource entity
-func (t *Transform) GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) models.PaymentTransactionsResourceDao  {
+func (t *Transform) GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) models.PaymentTransactionsResourceDao {
 
 	return models.PaymentTransactionsResourceDao{
 		TransactionID:     paymentDetails.PaymentID,
