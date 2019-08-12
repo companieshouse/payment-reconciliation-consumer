@@ -37,6 +37,7 @@ func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails
 		CompanyNumber: payment.CompanyNumber,
 		FilingDate:    "",
 		MadeUpdate:    "",
+		TransactionDate:   paymentDetails.TransactionDate,
 	}
 
 	return eshuResource, nil
