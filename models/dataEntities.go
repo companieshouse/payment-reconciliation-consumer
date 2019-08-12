@@ -7,6 +7,7 @@ type EshuResourceDao struct {
 	CompanyNumber string `bson:"company_number"`
 	FilingDate    string `bson:"filing_date"`
 	MadeUpdate    string `bson:"made_up_date"`
+	TransactionDate string `json:"transaction_date"`
 }
 
 // PaymentTransactionsResourceDao represents the payment transaction data structure
