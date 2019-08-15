@@ -32,7 +32,7 @@ func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails
 	}
 
 	eshuResource = models.EshuResourceDao{
-		PaymentRef:    paymentDetails.PaymentID,
+		PaymentRef:    paymentDetails.ExternalPaymentID,
 		ProductCode:   productMap.Codes[payment.Costs[0].ProductType],
 		CompanyNumber: payment.CompanyNumber,
 		FilingDate:    "",
@@ -47,7 +47,7 @@ func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails
 func (t *Transform) GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) models.PaymentTransactionsResourceDao {
 
 	return models.PaymentTransactionsResourceDao{
-		TransactionID:     paymentDetails.PaymentID,
+		TransactionID:     paymentDetails.ExternalPaymentID,
 		TransactionDate:   paymentDetails.TransactionDate,
 		Email:             payment.CreatedBy.Email,
 		PaymentMethod:     payment.PaymentMethod,
