@@ -50,11 +50,12 @@ func (mr *MockTransformerMockRecorder) GetEshuResource(arg0, arg1 interface{}) *
 }
 
 // GetTransactionResource mocks base method
-func (m *MockTransformer) GetTransactionResource(arg0 data.PaymentResponse, arg1 data.PaymentDetailsResponse) models.PaymentTransactionsResourceDao {
+func (m *MockTransformer) GetTransactionResource(arg0 data.PaymentResponse, arg1 data.PaymentDetailsResponse) (models.PaymentTransactionsResourceDao, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetTransactionResource", arg0, arg1)
 	ret0, _ := ret[0].(models.PaymentTransactionsResourceDao)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // GetTransactionResource indicates an expected call of GetTransactionResource
