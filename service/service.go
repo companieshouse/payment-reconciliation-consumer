@@ -239,7 +239,11 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						}
 
 						//Build Payment Transaction database object
-						payTrans := svc.Transformer.GetTransactionResource(paymentResponse, paymentDetails)
+						payTrans, err := svc.Transformer.GetTransactionResource(paymentResponse, paymentDetails)
+						if err != nil {
+							log.Error(err, log.Data{"message_offset": message.Offset})
+							svc.HandleError(err, message.Offset, &paymentDetails)
+						}
 
 						//Add Payment Transaction to the Database
 						err = svc.DAO.CreatePaymentTransactionsResource(&payTrans)

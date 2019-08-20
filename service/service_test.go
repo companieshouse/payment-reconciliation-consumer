@@ -140,7 +140,7 @@ func TestStart(t *testing.T) {
 							Convey("And a payment transactions resource is constructed", func() {
 
 								var ptr models.PaymentTransactionsResourceDao
-								mockTransformer.EXPECT().GetTransactionResource(pr, pdr).Return(ptr).Times(1)
+								mockTransformer.EXPECT().GetTransactionResource(pr, pdr).Return(ptr, nil).Times(1)
 
 								Convey("Which is also committed to the DB successfully", func() {
 

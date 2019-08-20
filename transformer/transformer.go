@@ -4,12 +4,13 @@ import (
 	"github.com/companieshouse/payment-reconciliation-consumer/config"
 	"github.com/companieshouse/payment-reconciliation-consumer/data"
 	"github.com/companieshouse/payment-reconciliation-consumer/models"
+	"time"
 )
 
 // Transformer provides an interface by which to transform payment models to reconciliation entities
 type Transformer interface {
 	GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) (models.EshuResourceDao, error)
-	GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) models.PaymentTransactionsResourceDao
+	GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) (models.PaymentTransactionsResourceDao, error)
 }
 
 // Transform implements the Transformer interface
@@ -31,24 +32,36 @@ func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails
 		return eshuResource, err
 	}
 
+	transactionDate, err := time.Parse(time.RFC3339Nano, paymentDetails.TransactionDate)
+	if err != nil {
+		return eshuResource, err
+	}
+
 	eshuResource = models.EshuResourceDao{
-		PaymentRef:    paymentDetails.ExternalPaymentID,
-		ProductCode:   productMap.Codes[payment.Costs[0].ProductType],
-		CompanyNumber: payment.CompanyNumber,
-		FilingDate:    "",
-		MadeUpdate:    "",
-		TransactionDate:   paymentDetails.TransactionDate,
+		PaymentRef:        paymentDetails.ExternalPaymentID,
+		ProductCode:       productMap.Codes[payment.Costs[0].ProductType],
+		CompanyNumber:     payment.CompanyNumber,
+		FilingDate:        "",
+		MadeUpdate:        "",
+		TransactionDate:   transactionDate,
 	}
 
 	return eshuResource, nil
 }
 
 // GetTransactionResource transforms payment data into a payment transaction resource entity
-func (t *Transform) GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) models.PaymentTransactionsResourceDao {
+func (t *Transform) GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) (models.PaymentTransactionsResourceDao, error) {
 
-	return models.PaymentTransactionsResourceDao{
+	var paymentTransactionsResource models.PaymentTransactionsResourceDao
+
+	transactionDate, err := time.Parse(time.RFC3339Nano, paymentDetails.TransactionDate)
+	if err != nil {
+		return paymentTransactionsResource, err
+	}
+
+	paymentTransactionsResource = models.PaymentTransactionsResourceDao{
 		TransactionID:     paymentDetails.ExternalPaymentID,
-		TransactionDate:   paymentDetails.TransactionDate,
+		TransactionDate:   transactionDate,
 		Email:             payment.CreatedBy.Email,
 		PaymentMethod:     payment.PaymentMethod,
 		Amount:            payment.Amount,
@@ -59,4 +72,6 @@ func (t *Transform) GetTransactionResource(payment data.PaymentResponse, payment
 		UserID:            "system",
 		OriginalReference: "",
 		DisputeDetails:    ""}
+
+	return paymentTransactionsResource, nil
 }
