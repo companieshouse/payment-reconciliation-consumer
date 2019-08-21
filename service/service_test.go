@@ -131,7 +131,7 @@ func TestStart(t *testing.T) {
 					Convey("Then an Eshu resource is constructed", func() {
 
 						var er models.EshuResourceDao
-						mockTransformer.EXPECT().GetEshuResource(pr, pdr).Return(er, nil).Times(1)
+						mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(er, nil).Times(1)
 
 						Convey("And committed to the DB successfully", func() {
 
@@ -140,7 +140,7 @@ func TestStart(t *testing.T) {
 							Convey("And a payment transactions resource is constructed", func() {
 
 								var ptr models.PaymentTransactionsResourceDao
-								mockTransformer.EXPECT().GetTransactionResource(pr, pdr).Return(ptr, nil).Times(1)
+								mockTransformer.EXPECT().GetTransactionResource(pr, pdr, paymentResourceID).Return(ptr, nil).Times(1)
 
 								Convey("Which is also committed to the DB successfully", func() {
 
@@ -201,11 +201,11 @@ func TestStart(t *testing.T) {
 
 					Convey("And no Eshu resource is ever constructed", func() {
 
-						mockTransformer.EXPECT().GetEshuResource(gomock.Any(), gomock.Any()).Times(0)
+						mockTransformer.EXPECT().GetEshuResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 						Convey("Nor is a transactions resource created", func() {
 
-							mockTransformer.EXPECT().GetTransactionResource(gomock.Any(), gomock.Any()).Times(0)
+							mockTransformer.EXPECT().GetTransactionResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 							svc.Start(wg, c)
 						})
