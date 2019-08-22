@@ -9,8 +9,8 @@ import (
 
 // Transformer provides an interface by which to transform payment models to reconciliation entities
 type Transformer interface {
-	GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) (models.EshuResourceDao, error)
-	GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) (models.PaymentTransactionsResourceDao, error)
+	GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) (models.EshuResourceDao, error)
+	GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) (models.PaymentTransactionsResourceDao, error)
 }
 
 // Transform implements the Transformer interface
@@ -23,7 +23,7 @@ func New() *Transform {
 }
 
 // GetEshuResource transforms payment data into an Eshu resource entity
-func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) (models.EshuResourceDao, error) {
+func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) (models.EshuResourceDao, error) {
 
 	var eshuResource models.EshuResourceDao
 
@@ -38,7 +38,7 @@ func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails
 	}
 
 	eshuResource = models.EshuResourceDao{
-		PaymentRef:        paymentDetails.ExternalPaymentID,
+		PaymentRef:        paymentId,
 		ProductCode:       productMap.Codes[payment.Costs[0].ProductType],
 		CompanyNumber:     payment.CompanyNumber,
 		FilingDate:        "",
@@ -50,7 +50,7 @@ func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails
 }
 
 // GetTransactionResource transforms payment data into a payment transaction resource entity
-func (t *Transform) GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse) (models.PaymentTransactionsResourceDao, error) {
+func (t *Transform) GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) (models.PaymentTransactionsResourceDao, error) {
 
 	var paymentTransactionsResource models.PaymentTransactionsResourceDao
 
@@ -60,7 +60,7 @@ func (t *Transform) GetTransactionResource(payment data.PaymentResponse, payment
 	}
 
 	paymentTransactionsResource = models.PaymentTransactionsResourceDao{
-		TransactionID:     paymentDetails.ExternalPaymentID,
+		TransactionID:     paymentId,
 		TransactionDate:   transactionDate,
 		Email:             payment.CreatedBy.Email,
 		PaymentMethod:     payment.PaymentMethod,
