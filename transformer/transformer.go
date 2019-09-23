@@ -4,6 +4,7 @@ import (
 	"github.com/companieshouse/payment-reconciliation-consumer/config"
 	"github.com/companieshouse/payment-reconciliation-consumer/data"
 	"github.com/companieshouse/payment-reconciliation-consumer/models"
+	"strings"
 	"time"
 )
 
@@ -67,7 +68,7 @@ func (t *Transform) GetTransactionResource(payment data.PaymentResponse, payment
 		Amount:            payment.Amount,
 		CompanyNumber:     payment.CompanyNumber,
 		TransactionType:   "Immediate bill",
-		OrderReference:    payment.Reference,
+		OrderReference:    strings.Replace(payment.Reference,"_", "-", -1),
 		Status:            paymentDetails.PaymentStatus,
 		UserID:            "system",
 		OriginalReference: "",
