@@ -125,7 +125,10 @@ func TestStart(t *testing.T) {
 
 				Convey("And the payment details corresponding to the message are fetched successfully", func() {
 
-					var pdr data.PaymentDetailsResponse
+					
+					pdr := data.PaymentDetailsResponse{
+						PaymentStatus: "accepted",
+					}
 					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
 
 					Convey("Then an Eshu resource is constructed", func() {
