@@ -217,40 +217,43 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 						//Call GetPayment payment details from payments API
 						paymentDetails, statusCode, err := svc.Payments.GetPaymentDetails(getPaymentDetailsURL, svc.Client, svc.APIKey)
+
 						if err != nil {
 							log.Error(err, log.Data{"message_offset": message.Offset})
 							svc.HandleError(err, message.Offset, &paymentDetails)
 						}
 						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
+						//Filter accepted payments from GovPay
+						if paymentDetails.PaymentStatus == "accepted" {
+							//Get Eshu resource
+							eshu, err := svc.Transformer.GetEshuResource(paymentResponse, paymentDetails, pp.ResourceURI)
+							if err != nil {
+								log.Error(err, log.Data{"message_offset": message.Offset})
+								svc.HandleError(err, message.Offset, &paymentDetails)
+							}
 
-						//Get Eshu resource
-						eshu, err := svc.Transformer.GetEshuResource(paymentResponse, paymentDetails, pp.ResourceURI)
-						if err != nil {
-							log.Error(err, log.Data{"message_offset": message.Offset})
-							svc.HandleError(err, message.Offset, &paymentDetails)
-						}
+							//Add Eshu object to the Database
+							err = svc.DAO.CreateEshuResource(&eshu)
+							if err != nil {
+								log.Error(err, log.Data{"message": "failed to create eshu request in database",
+									"data": eshu})
+								svc.HandleError(err, message.Offset, &eshu)
+							}
 
-						//Add Eshu object to the Database
-						err = svc.DAO.CreateEshuResource(&eshu)
-						if err != nil {
-							log.Error(err, log.Data{"message": "failed to create eshu request in database",
-								"data": eshu})
-							svc.HandleError(err, message.Offset, &eshu)
-						}
+							//Build Payment Transaction database object
+							payTrans, err := svc.Transformer.GetTransactionResource(paymentResponse, paymentDetails, pp.ResourceURI)
+							if err != nil {
+								log.Error(err, log.Data{"message_offset": message.Offset})
+								svc.HandleError(err, message.Offset, &paymentDetails)
+							}
 
-						//Build Payment Transaction database object
-						payTrans, err := svc.Transformer.GetTransactionResource(paymentResponse, paymentDetails, pp.ResourceURI)
-						if err != nil {
-							log.Error(err, log.Data{"message_offset": message.Offset})
-							svc.HandleError(err, message.Offset, &paymentDetails)
-						}
-
-						//Add Payment Transaction to the Database
-						err = svc.DAO.CreatePaymentTransactionsResource(&payTrans)
-						if err != nil {
-							log.Error(err, log.Data{"message": "failed to create production request in database",
-								"data": payTrans})
-							svc.HandleError(err, message.Offset, &payTrans)
+							//Add Payment Transaction to the Database
+							err = svc.DAO.CreatePaymentTransactionsResource(&payTrans)
+							if err != nil {
+								log.Error(err, log.Data{"message": "failed to create production request in database",
+									"data": payTrans})
+								svc.HandleError(err, message.Offset, &payTrans)
+							}
 						}
 					}
 				}
