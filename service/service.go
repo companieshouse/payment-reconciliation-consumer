@@ -223,6 +223,10 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							svc.HandleError(err, message.Offset, &paymentDetails)
 						}
 						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
+
+						// We need to remove sensitive data fields for secure applications.
+						BlankSecureFields(&paymentResponse)
+
 						//Filter accepted payments from GovPay
 						if paymentDetails.PaymentStatus == "accepted" {
 							//Get Eshu resource
@@ -282,6 +286,23 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 	wg.Done()
 
 	log.Info("Service successfully shutdown", log.Data{"topic": svc.Topic})
+}
+
+func BlankSecureFields(payment *data.PaymentResponse) {
+	log.Info("Blanking sensitive fields for secure applications ", log.Data{"payment": payment})
+
+	productMap, err := config.GetProductMap()
+	if err != nil {
+		return
+	}
+
+	productCode := productMap.Codes[payment.Costs[0].ProductType]
+
+	if productCode == 99999 {
+		payment.CompanyNumber = "**SECURED**"
+		payment.CreatedBy.Email = "**SECURED**"
+	}
+
 }
 
 //Shutdown closes all producers and consumers for this service

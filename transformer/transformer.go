@@ -72,7 +72,8 @@ func (t *Transform) GetTransactionResource(payment data.PaymentResponse, payment
 		Status:            paymentDetails.PaymentStatus,
 		UserID:            "system",
 		OriginalReference: "",
-		DisputeDetails:    ""}
+		DisputeDetails:    "",
+	}
 
 	return paymentTransactionsResource, nil
 }
