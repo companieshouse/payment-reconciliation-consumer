@@ -125,7 +125,6 @@ func TestStart(t *testing.T) {
 
 				Convey("And the payment details corresponding to the message are fetched successfully", func() {
 
-					
 					pdr := data.PaymentDetailsResponse{
 						PaymentStatus: "accepted",
 					}
