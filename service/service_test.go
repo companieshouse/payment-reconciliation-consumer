@@ -117,7 +117,7 @@ func TestStart(t *testing.T) {
 				}
 
 				pr := data.PaymentResponse{
-
+					CompanyNumber: "123456",
 					Costs: []data.Cost{cost},
 				}
 
@@ -143,6 +143,8 @@ func TestStart(t *testing.T) {
 
 								var ptr models.PaymentTransactionsResourceDao
 								mockTransformer.EXPECT().GetTransactionResource(pr, pdr, paymentResourceID).Return(ptr, nil).Times(1)
+								//So(ptr.Email, ShouldEqual, "")
+								//So(ptr.CompanyNumber, ShouldEqual, "")
 
 								Convey("Which is also committed to the DB successfully", func() {
 
@@ -230,3 +232,27 @@ func endConsumerProcess(svc *Service, c chan os.Signal) {
 		close(c)
 	}()
 }
+
+func TestUnitBlankSecureFields(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(mockPayment, mockTransformer, mockDao)
+
+	pdr := data.PaymentResponse{
+		CompanyNumber: "123456",
+	}
+
+	Convey("test successful blanking of secure fields ", t, func() {
+		svc.BlankSecureFields(&pdr)
+		So(pdr.CompanyNumber, ShouldEqual, "")
+	})
+
+}
+
+
+

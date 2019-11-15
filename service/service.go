@@ -225,7 +225,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
 
 						// We need to remove sensitive data fields for secure applications.
-						BlankSecureFields(&paymentResponse)
+						svc.BlankSecureFields(&paymentResponse)
 
 						//Filter accepted payments from GovPay
 						if paymentDetails.PaymentStatus == "accepted" {
@@ -288,15 +288,10 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 	log.Info("Service successfully shutdown", log.Data{"topic": svc.Topic})
 }
 
-func BlankSecureFields(payment *data.PaymentResponse) {
+func (svc *Service) BlankSecureFields(payment *data.PaymentResponse) {
 	log.Info("Blanking sensitive fields for secure applications ", log.Data{"payment": payment})
 
-	productMap, err := config.GetProductMap()
-	if err != nil {
-		return
-	}
-
-	productCode := productMap.Codes[payment.Costs[0].ProductType]
+	productCode := svc.ProductMap.Codes[payment.Costs[0].ProductType]
 
 	if productCode == 99999 {
 		payment.CompanyNumber = "**SECURED**"
