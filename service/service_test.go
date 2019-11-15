@@ -37,7 +37,7 @@ func createMockService(productMap *config.ProductMap, mockPayment *payment.MockF
 		DAO:            mockDao,
 		PaymentsAPIURL: paymentsAPIUrl,
 		APIKey:         apiKey,
-		ProductMap:		productMap,
+		ProductMap:     productMap,
 		Client:         &http.Client{},
 		StopAtOffset:   int64(-1),
 	}
@@ -150,7 +150,7 @@ func TestStart(t *testing.T) {
 
 				pr := data.PaymentResponse{
 					CompanyNumber: "123456",
-					Costs: []data.Cost{cost},
+					Costs:         []data.Cost{cost},
 				}
 
 				mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
@@ -281,20 +281,23 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 
 	cost := data.Cost{
 		ClassOfPayment: []string{"data-maintenance"},
-		ProductType: "SECURE243",
+		ProductType:    "SECURE243",
+	}
+
+	created := data.Created{
+		Email:    "test@test.com",
 	}
 
 	pdr := data.PaymentResponse{
-		CompanyNumber: "123456",
-		Costs: []data.Cost{cost},
+		CompanyNumber: 	"123456",
+		CreatedBy: 		created,
+		Costs:         	[]data.Cost{cost},
 	}
 
 	Convey("test successful masking of sensitive fields ", t, func() {
 		svc.MaskSensitiveFields(&pdr)
 		So(pdr.CompanyNumber, ShouldEqual, "**SECURED**")
+		So(pdr.CreatedBy.Email, ShouldEqual, "**SECURED**")
 	})
 
 }
-
-
-
