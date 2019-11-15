@@ -225,7 +225,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
 
 						// We need to remove sensitive data fields for secure applications.
-						BlankSecureFields(&paymentResponse)
+						svc.MaskSensitiveFields(&paymentResponse)
 
 						//Filter accepted payments from GovPay
 						if paymentDetails.PaymentStatus == "accepted" {
@@ -288,19 +288,20 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 	log.Info("Service successfully shutdown", log.Data{"topic": svc.Topic})
 }
 
-func BlankSecureFields(payment *data.PaymentResponse) {
-	log.Info("Blanking sensitive fields for secure applications ", log.Data{"payment": payment})
+// We need a function to mask potentially sensitive data fields in the event it' a secure application.
+// Currently there are product types/codes registered against these applications.
+func (svc *Service) MaskSensitiveFields(payment *data.PaymentResponse) {
+	log.Info("Blanking sensitive fields for secure applications. ")
 
-	productMap, err := config.GetProductMap()
-	if err != nil {
-		return
-	}
+	// Define the value to be used for masked fields.
+	const maskedValue string = "**SECURED**"
 
-	productCode := productMap.Codes[payment.Costs[0].ProductType]
+	// Find the product code associated with this product type.
+	productCode := svc.ProductMap.Codes[payment.Costs[0].ProductType]
 
 	if productCode == 99999 {
-		payment.CompanyNumber = "**SECURED**"
-		payment.CreatedBy.Email = "**SECURED**"
+		payment.CompanyNumber = maskedValue
+		payment.CreatedBy.Email = maskedValue
 	}
 
 }
