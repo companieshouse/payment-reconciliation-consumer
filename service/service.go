@@ -294,12 +294,12 @@ func (svc *Service) MaskSensitiveFields(payment *data.PaymentResponse) {
 	log.Info("Blanking sensitive fields for secure applications. ")
 
 	// Define the value to be used for masked fields.
-	const maskedValue string = "**SECURED**"
+	const maskedValue string = ""
 
 	// Find the product code associated with this product type.
 	productCode := svc.ProductMap.Codes[payment.Costs[0].ProductType]
 
-	if productCode == 99999 {
+	if productCode == 16800 {
 		payment.CompanyNumber = maskedValue
 		payment.CreatedBy.Email = maskedValue
 	}

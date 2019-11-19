@@ -285,19 +285,19 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 	}
 
 	created := data.Created{
-		Email:    "test@test.com",
+		Email: "test@test.com",
 	}
 
 	pdr := data.PaymentResponse{
-		CompanyNumber: 	"123456",
-		CreatedBy: 		created,
-		Costs:         	[]data.Cost{cost},
+		CompanyNumber: "123456",
+		CreatedBy:     created,
+		Costs:         []data.Cost{cost},
 	}
 
 	Convey("test successful masking of sensitive fields ", t, func() {
 		svc.MaskSensitiveFields(&pdr)
-		So(pdr.CompanyNumber, ShouldEqual, "**SECURED**")
-		So(pdr.CreatedBy.Email, ShouldEqual, "**SECURED**")
+		So(pdr.CompanyNumber, ShouldEqual, "")
+		So(pdr.CreatedBy.Email, ShouldEqual, "")
 	})
 
 }
