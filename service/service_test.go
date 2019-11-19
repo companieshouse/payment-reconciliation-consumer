@@ -252,19 +252,6 @@ func TestStart(t *testing.T) {
 	})
 }
 
-// endConsumerProcess facilitates service termination
-func endConsumerProcess(svc *Service, c chan os.Signal) {
-
-	// Decrement the offset to escape an endless loop in the service
-	svc.StopAtOffset = int64(-2)
-
-	// Send a kill command to the input channel to terminate program execution
-	go func() {
-		c <- os.Kill
-		close(c)
-	}()
-}
-
 func TestUnitMaskSensitiveFields(t *testing.T) {
 	ctrl := gomock.NewController(t)
 
@@ -279,13 +266,13 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 
 	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
 
+	created := data.Created{
+		Email: "demo@ch.gov.uk",
+	}
+
 	cost := data.Cost{
 		ClassOfPayment: []string{"data-maintenance"},
 		ProductType:    "SECURE243",
-	}
-
-	created := data.Created{
-		Email: "test@test.com",
 	}
 
 	pdr := data.PaymentResponse{
@@ -300,4 +287,54 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 		So(pdr.CreatedBy.Email, ShouldEqual, "")
 	})
 
+}
+
+func TestUnitDoNotMaskNormalFields(t *testing.T) {
+	ctrl := gomock.NewController(t)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	productMap, err := createProductMap()
+	if err != nil {
+		log.Error(fmt.Errorf("error initialising productMap: %s", err), nil)
+	}
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+	created := data.Created{
+		Email: "demo@ch.gov.uk",
+	}
+
+	cost := data.Cost{
+		ClassOfPayment: []string{"data-maintenance"},
+		ProductType:    "cic-report",
+	}
+
+	pdr := data.PaymentResponse{
+		CompanyNumber: "123456",
+		CreatedBy:     created,
+		Costs:         []data.Cost{cost},
+	}
+
+	Convey("test successful masking of sensitive fields ", t, func() {
+		svc.MaskSensitiveFields(&pdr)
+		So(pdr.CompanyNumber, ShouldEqual, "123456")
+		So(pdr.CreatedBy.Email, ShouldEqual, "demo@ch.gov.uk")
+	})
+
+}
+
+// endConsumerProcess facilitates service termination
+func endConsumerProcess(svc *Service, c chan os.Signal) {
+
+	// Decrement the offset to escape an endless loop in the service
+	svc.StopAtOffset = int64(-2)
+
+	// Send a kill command to the input channel to terminate program execution
+	go func() {
+		c <- os.Kill
+		close(c)
+	}()
 }
