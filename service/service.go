@@ -224,11 +224,12 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						}
 						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
 
-						// We need to remove sensitive data fields for secure applications.
-						svc.MaskSensitiveFields(&paymentResponse)
-
 						//Filter accepted payments from GovPay
 						if paymentDetails.PaymentStatus == "accepted" {
+
+							// We need to remove sensitive data fields for secure applications.
+							svc.MaskSensitiveFields(&paymentResponse)
+
 							//Get Eshu resource
 							eshu, err := svc.Transformer.GetEshuResource(paymentResponse, paymentDetails, pp.ResourceURI)
 							if err != nil {
