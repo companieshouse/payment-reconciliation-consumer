@@ -272,7 +272,7 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 
 	cost := data.Cost{
 		ClassOfPayment: []string{"data-maintenance"},
-		ProductType:    "SECURE243",
+		ProductType:    "ProApp1",
 	}
 
 	pdr := data.PaymentResponse{
@@ -283,6 +283,7 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 
 	Convey("test successful masking of sensitive fields ", t, func() {
 		svc.MaskSensitiveFields(&pdr)
+		
 		So(pdr.CompanyNumber, ShouldEqual, "")
 		So(pdr.CreatedBy.Email, ShouldEqual, "")
 	})
@@ -320,6 +321,7 @@ func TestUnitDoNotMaskNormalFields(t *testing.T) {
 
 	Convey("test successful masking of sensitive fields ", t, func() {
 		svc.MaskSensitiveFields(&pdr)
+
 		So(pdr.CompanyNumber, ShouldEqual, "123456")
 		So(pdr.CreatedBy.Email, ShouldEqual, "demo@ch.gov.uk")
 	})
