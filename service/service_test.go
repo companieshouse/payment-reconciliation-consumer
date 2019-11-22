@@ -175,8 +175,6 @@ func TestStart(t *testing.T) {
 
 								var ptr models.PaymentTransactionsResourceDao
 								mockTransformer.EXPECT().GetTransactionResource(pr, pdr, paymentResourceID).Return(ptr, nil).Times(1)
-								//So(ptr.Email, ShouldEqual, "")
-								//So(ptr.CompanyNumber, ShouldEqual, "")
 
 								Convey("Which is also committed to the DB successfully", func() {
 
@@ -272,7 +270,7 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 
 	cost := data.Cost{
 		ClassOfPayment: []string{"data-maintenance"},
-		ProductType:    "ProApp1",
+		ProductType:    "pro-app-1",
 	}
 
 	pdr := data.PaymentResponse{
@@ -283,7 +281,7 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 
 	Convey("test successful masking of sensitive fields ", t, func() {
 		svc.MaskSensitiveFields(&pdr)
-		
+
 		So(pdr.CompanyNumber, ShouldEqual, "")
 		So(pdr.CreatedBy.Email, ShouldEqual, "")
 	})
