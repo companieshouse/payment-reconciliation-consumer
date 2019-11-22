@@ -168,7 +168,6 @@ func TestStart(t *testing.T) {
 						mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(er, nil).Times(1)
 
 						Convey("And committed to the DB successfully", func() {
-
 							mockDao.EXPECT().CreateEshuResource(&er).Return(nil).Times(1)
 
 							Convey("And a payment transactions resource is constructed", func() {
@@ -208,37 +207,31 @@ func TestStart(t *testing.T) {
 		svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
 
 		Convey("Given a message is readily available for the service to consume", func() {
-
 			svc.Consumer = createMockConsumerWithMessage()
 
 			Convey("When the payment corresponding to the message is fetched successfully", func() {
 
 				cost := data.Cost{
-
 					ClassOfPayment: []string{"penalty"},
 				}
 
 				pr := data.PaymentResponse{
-
 					Costs: []data.Cost{cost},
 				}
 
 				mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).DoAndReturn(func(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentResponse, int, error) {
-
 					endConsumerProcess(svc, c)
+
 					return pr, 200, nil
 				})
 
 				Convey("But payment details are never fetched", func() {
-
 					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Times(0)
 
 					Convey("And no Eshu resource is ever constructed", func() {
-
 						mockTransformer.EXPECT().GetEshuResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 						Convey("Nor is a transactions resource created", func() {
-
 							mockTransformer.EXPECT().GetTransactionResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 							svc.Start(wg, c)
@@ -265,7 +258,7 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
 
 	created := data.Created{
-		Email: "demo@ch.gov.uk",
+		Email: "test@ch.gov.uk",
 	}
 
 	cost := data.Cost{
@@ -303,7 +296,7 @@ func TestUnitDoNotMaskNormalFields(t *testing.T) {
 	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
 
 	created := data.Created{
-		Email: "demo@ch.gov.uk",
+		Email: "test@ch.gov.uk",
 	}
 
 	cost := data.Cost{
@@ -321,7 +314,7 @@ func TestUnitDoNotMaskNormalFields(t *testing.T) {
 		svc.MaskSensitiveFields(&pdr)
 
 		So(pdr.CompanyNumber, ShouldEqual, "123456")
-		So(pdr.CreatedBy.Email, ShouldEqual, "demo@ch.gov.uk")
+		So(pdr.CreatedBy.Email, ShouldEqual, "test@ch.gov.uk")
 	})
 
 }
