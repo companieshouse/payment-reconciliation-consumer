@@ -223,8 +223,13 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							svc.HandleError(err, message.Offset, &paymentDetails)
 						}
 						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
+
 						//Filter accepted payments from GovPay
 						if paymentDetails.PaymentStatus == "accepted" {
+
+							// We need to remove sensitive data fields for secure applications.
+							svc.MaskSensitiveFields(&paymentResponse)
+
 							//Get Eshu resource
 							eshu, err := svc.Transformer.GetEshuResource(paymentResponse, paymentDetails, pp.ResourceURI)
 							if err != nil {
@@ -282,6 +287,24 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 	wg.Done()
 
 	log.Info("Service successfully shutdown", log.Data{"topic": svc.Topic})
+}
+
+// We need a function to mask potentially sensitive data fields in the event it's a secure application.
+// Currently there are product types/codes registered against these applications.
+func (svc *Service) MaskSensitiveFields(payment *data.PaymentResponse) {
+	log.Info("Blanking sensitive fields for secure applications. ")
+
+	// Define the value to be used for masked fields.
+	const maskedValue string = ""
+
+	// Find the product code associated with this product type.
+	productCode := svc.ProductMap.Codes[payment.Costs[0].ProductType]
+
+	if productCode == 16800 {
+		payment.CompanyNumber = maskedValue
+		payment.CreatedBy.Email = maskedValue
+	}
+
 }
 
 //Shutdown closes all producers and consumers for this service
