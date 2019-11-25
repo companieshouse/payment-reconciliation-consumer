@@ -289,7 +289,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 	log.Info("Service successfully shutdown", log.Data{"topic": svc.Topic})
 }
 
-// We need a function to mask potentially sensitive data fields in the event it' a secure application.
+// We need a function to mask potentially sensitive data fields in the event it's a secure application.
 // Currently there are product types/codes registered against these applications.
 func (svc *Service) MaskSensitiveFields(payment *data.PaymentResponse) {
 	log.Info("Blanking sensitive fields for secure applications. ")
