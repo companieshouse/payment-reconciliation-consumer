@@ -54,3 +54,6 @@ dist: clean build package
 lint:
 	go get github.com/golang/lint/golint
 	golint ./... > $(lint_output)
+
+.EXPORT_ALL_VARIABLES:
+    GO111MODULE = on
