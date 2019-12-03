@@ -1,6 +1,6 @@
 module github.com/companieshouse/payment-reconciliation-consumer
 
-go 1.13
+go 1.12
 
 require (
 	github.com/Shopify/sarama v1.24.1
