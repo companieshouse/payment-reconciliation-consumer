@@ -88,7 +88,7 @@ func (m MockConsumer) Errors() <-chan error {
 	return nil
 }
 
-func TestStart(t *testing.T) {
+func TestUnitStart(t *testing.T) {
 
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()

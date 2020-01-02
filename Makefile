@@ -28,7 +28,7 @@ test: test-unit
 
 .PHONY: test-unit
 test-unit: test-deps
-	go test ./...
+	go test ./... -run 'Unit' -coverprofile=coverage.out
 
 .PHONY: clean
 clean:
