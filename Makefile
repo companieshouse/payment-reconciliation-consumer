@@ -1,6 +1,13 @@
-bin     := payment-reconciliation-consumer
+TESTS ?= ./...
 
-lint_output  := lint.txt
+bin     	  := payment-reconciliation-consumer
+commit        := $(shell git rev-parse --short HEAD)
+tag           := $(shell git tag -l 'v*-rc*' --points-at HEAD)
+version       := $(shell if [[ -n "$(tag)" ]]; then echo $(tag) | sed 's/^v//'; else echo $(commit); fi)
+lint_output   := lint.txt
+
+.EXPORT_ALL_VARIABLES:
+GO111MODULE = on
 
 .PHONY: all
 all: build
@@ -9,26 +16,16 @@ all: build
 fmt:
 	go fmt ./...
 
-.PHONY: deps
-deps:
-	go get ./...
-
 .PHONY: build
-build: deps fmt $(bin)
-
-$(bin):
-	CGO_ENABLED=0 go build -o ./$(bin)
-
-.PHONY: test-deps
-test-deps: deps
-	go get -t ./...
+build: fmt
+	CGO_ENABLED=0 go build
 
 .PHONY: test
 test: test-unit
 
 .PHONY: test-unit
-test-unit: test-deps
-	go test ./...
+test-unit:
+	go test $(TESTS)
 
 .PHONY: clean
 clean:
@@ -51,9 +48,8 @@ endif
 dist: clean build package
 
 .PHONY: lint
+lint: GO111MODULE=off
 lint:
-	go get github.com/golang/lint/golint
-	golint ./... > $(lint_output)
-
-.EXPORT_ALL_VARIABLES:
-    GO111MODULE = on
+	go get -u github.com/alecthomas/gometalinter
+	gometalinter --install
+	gometalinter ./... > $(lint_output); true
