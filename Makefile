@@ -1,10 +1,7 @@
 TESTS ?= ./...
 
-bin     	  := payment-reconciliation-consumer
-commit        := $(shell git rev-parse --short HEAD)
-tag           := $(shell git tag -l 'v*-rc*' --points-at HEAD)
-version       := $(shell if [[ -n "$(tag)" ]]; then echo $(tag) | sed 's/^v//'; else echo $(commit); fi)
-lint_output   := lint.txt
+bin          := payment-reconciliation-consumer
+lint_output  := lint.txt
 
 .EXPORT_ALL_VARIABLES:
 GO111MODULE = on
