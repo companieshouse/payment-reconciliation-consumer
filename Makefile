@@ -32,6 +32,7 @@ test-unit: test-deps
 
 .PHONY: clean
 clean:
+	go mod tidy
 	rm -f ./$(bin) ./$(bin)-*.zip build.log
 
 .PHONY: package
