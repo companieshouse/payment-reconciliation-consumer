@@ -209,7 +209,8 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					}
 					log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse, "status_code": statusCode})
 
-					if paymentResponse.Costs[0].ClassOfPayment[0] == "data-maintenance" {
+					if paymentResponse.Costs[0].ClassOfPayment[0] == "data-maintenance" ||
+						paymentResponse.Costs[0].ClassOfPayment[0] == "orderable-item" {
 
 						//Create GetPayment payment URL
 						getPaymentDetailsURL := svc.PaymentsAPIURL + "/private/payments/" + pp.ResourceURI + "/payment-details"
