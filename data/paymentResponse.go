@@ -47,3 +47,9 @@ type Created struct {
 	ID       string `json:"id"`
 	Surname  string `json:"surname"`
 }
+
+// Indicates whether the payment is reconcilable or not.
+func (payment PaymentResponse) IsReconcilable() bool {
+	return (payment.Costs[0].ClassOfPayment[0] == "data-maintenance" ||
+		payment.Costs[0].ClassOfPayment[0] == "orderable-item")
+}
