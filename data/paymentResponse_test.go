@@ -9,17 +9,17 @@ import (
 func TestUnitIsReconcilable(t *testing.T) {
 
 	Convey("data-maintenance payments are reconcilable", t, func() {
-		dataMaintenance := createPaymentResponse("data-maintenance")
+		dataMaintenance := createPaymentResponse(DataMaintenance)
 		Equal(t, dataMaintenance.IsReconcilable(), true, "data-maintenance payments should be reconcilable")
 	})
 
 	Convey("orderable-item payments are reconcilable", t, func() {
-		orderableItem := createPaymentResponse("orderable-item")
+		orderableItem := createPaymentResponse(OrderableItem)
 		Equal(t, orderableItem.IsReconcilable(), true, "orderable-item payments should be reconcilable")
 	})
 
 	Convey("penalty payments are not reconcilable", t, func() {
-		penalty := createPaymentResponse("penalty")
+		penalty := createPaymentResponse(Penalty)
 		Equal(t, penalty.IsReconcilable(), false, "penalty payments should not be reconcilable")
 	})
 
@@ -30,8 +30,8 @@ func createPaymentResponse(classOfPayment string) PaymentResponse {
 	cost := Cost{
 		ClassOfPayment: []string{classOfPayment},
 	}
-	pr := PaymentResponse{
+	paymentResponse := PaymentResponse{
 		Costs: []Cost{cost},
 	}
-	return pr
+	return paymentResponse
 }

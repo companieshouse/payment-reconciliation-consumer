@@ -127,7 +127,7 @@ func TestUnitStart(t *testing.T) {
 	}
 
 	Convey("Successful process of a single Kafka message for a 'data-maintenance' payment", t, func() {
-		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, "data-maintenance")
+		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.DataMaintenance)
 	})
 
 	Convey("Process of a single Kafka message for a 'penalty' payment", t, func() {
@@ -148,7 +148,7 @@ func TestUnitStart(t *testing.T) {
 			Convey("When the payment corresponding to the message is fetched successfully", func() {
 
 				cost := data.Cost{
-					ClassOfPayment: []string{"penalty"},
+					ClassOfPayment: []string{data.Penalty},
 				}
 
 				pr := data.PaymentResponse{
@@ -179,7 +179,7 @@ func TestUnitStart(t *testing.T) {
 	})
 
 	Convey("Successful process of a single Kafka message for an 'orderable-item' payment", t, func() {
-		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, "orderable-item")
+		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
 	})
 
 }
@@ -203,7 +203,7 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 	}
 
 	cost := data.Cost{
-		ClassOfPayment: []string{"data-maintenance"},
+		ClassOfPayment: []string{data.DataMaintenance},
 		ProductType:    "pro-app-1",
 	}
 
@@ -241,7 +241,7 @@ func TestUnitDoNotMaskNormalFields(t *testing.T) {
 	}
 
 	cost := data.Cost{
-		ClassOfPayment: []string{"data-maintenance"},
+		ClassOfPayment: []string{data.DataMaintenance},
 		ProductType:    "cic-report",
 	}
 

@@ -4,6 +4,10 @@ import (
 	"time"
 )
 
+const DataMaintenance = "data-maintenance"
+const OrderableItem = "orderable-item"
+const Penalty = "penalty"
+
 // PaymentResponse represents a response from the payment service GET payment endpoint
 type PaymentResponse struct {
 	Amount                  string       `json:"amount"`
@@ -50,6 +54,6 @@ type Created struct {
 
 // Indicates whether the payment is reconcilable or not.
 func (payment PaymentResponse) IsReconcilable() bool {
-	return (payment.Costs[0].ClassOfPayment[0] == "data-maintenance" ||
-		payment.Costs[0].ClassOfPayment[0] == "orderable-item")
+	return (payment.Costs[0].ClassOfPayment[0] == DataMaintenance ||
+		payment.Costs[0].ClassOfPayment[0] == OrderableItem)
 }
