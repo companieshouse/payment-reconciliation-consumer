@@ -127,71 +127,7 @@ func TestUnitStart(t *testing.T) {
 	}
 
 	Convey("Successful process of a single Kafka message for a 'data-maintenance' payment", t, func() {
-
-		wg := &sync.WaitGroup{}
-		wg.Add(1)
-		c := make(chan os.Signal)
-
-		mockPayment := payment.NewMockFetcher(ctrl)
-		mockTransformer := transformer.NewMockTransformer(ctrl)
-		mockDao := dao.NewMockDAO(ctrl)
-
-		svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
-
-		Convey("Given a message is readily available for the service to consume", func() {
-
-			svc.Consumer = createMockConsumerWithMessage()
-
-			Convey("When the payment corresponding to the message is fetched successfully", func() {
-
-				cost := data.Cost{
-					ClassOfPayment: []string{"data-maintenance"},
-				}
-
-				pr := data.PaymentResponse{
-					CompanyNumber: "123456",
-					Costs:         []data.Cost{cost},
-				}
-
-				mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
-
-				Convey("And the payment details corresponding to the message are fetched successfully", func() {
-
-					pdr := data.PaymentDetailsResponse{
-						PaymentStatus: "accepted",
-					}
-					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
-
-					Convey("Then an Eshu resource is constructed", func() {
-
-						var er models.EshuResourceDao
-						mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(er, nil).Times(1)
-
-						Convey("And committed to the DB successfully", func() {
-							mockDao.EXPECT().CreateEshuResource(&er).Return(nil).Times(1)
-
-							Convey("And a payment transactions resource is constructed", func() {
-
-								var ptr models.PaymentTransactionsResourceDao
-								mockTransformer.EXPECT().GetTransactionResource(pr, pdr, paymentResourceID).Return(ptr, nil).Times(1)
-
-								Convey("Which is also committed to the DB successfully", func() {
-
-									mockDao.EXPECT().CreatePaymentTransactionsResource(&ptr).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-
-										// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
-										endConsumerProcess(svc, c)
-										return nil
-									})
-
-									svc.Start(wg, c)
-								})
-							})
-						})
-					})
-				})
-			})
-		})
+		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.DataMaintenance)
 	})
 
 	Convey("Process of a single Kafka message for a 'penalty' payment", t, func() {
@@ -212,7 +148,7 @@ func TestUnitStart(t *testing.T) {
 			Convey("When the payment corresponding to the message is fetched successfully", func() {
 
 				cost := data.Cost{
-					ClassOfPayment: []string{"penalty"},
+					ClassOfPayment: []string{data.Penalty},
 				}
 
 				pr := data.PaymentResponse{
@@ -241,6 +177,11 @@ func TestUnitStart(t *testing.T) {
 			})
 		})
 	})
+
+	Convey("Successful process of a single Kafka message for an 'orderable-item' payment", t, func() {
+		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
+	})
+
 }
 
 func TestUnitMaskSensitiveFields(t *testing.T) {
@@ -262,7 +203,7 @@ func TestUnitMaskSensitiveFields(t *testing.T) {
 	}
 
 	cost := data.Cost{
-		ClassOfPayment: []string{"data-maintenance"},
+		ClassOfPayment: []string{data.DataMaintenance},
 		ProductType:    "pro-app-1",
 	}
 
@@ -300,7 +241,7 @@ func TestUnitDoNotMaskNormalFields(t *testing.T) {
 	}
 
 	cost := data.Cost{
-		ClassOfPayment: []string{"data-maintenance"},
+		ClassOfPayment: []string{data.DataMaintenance},
 		ProductType:    "cic-report",
 	}
 
@@ -330,4 +271,79 @@ func endConsumerProcess(svc *Service, c chan os.Signal) {
 		c <- os.Kill
 		close(c)
 	}()
+}
+
+// processingOfPaymentKafkaMessageCreatesReconciliationRecords asserts that a payment of the class specified
+// will result in a call to get the payment details and the creation of eshu and payment_transaction
+// reconciliation records.
+func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
+	ctrl *gomock.Controller,
+	productMap *config.ProductMap,
+	classOfPayment string) {
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	c := make(chan os.Signal)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+	Convey("Given a message is readily available for the service to consume", func() {
+
+		svc.Consumer = createMockConsumerWithMessage()
+
+		Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+			cost := data.Cost{
+				ClassOfPayment: []string{classOfPayment},
+			}
+
+			pr := data.PaymentResponse{
+				CompanyNumber: "123456",
+				Costs:         []data.Cost{cost},
+			}
+
+			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+
+			Convey("And the payment details corresponding to the message are fetched successfully", func() {
+
+				pdr := data.PaymentDetailsResponse{
+					PaymentStatus: "accepted",
+				}
+				mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
+
+				Convey("Then an Eshu resource is constructed", func() {
+
+					var er models.EshuResourceDao
+					mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(er, nil).Times(1)
+
+					Convey("And committed to the DB successfully", func() {
+						mockDao.EXPECT().CreateEshuResource(&er).Return(nil).Times(1)
+
+						Convey("And a payment transactions resource is constructed", func() {
+
+							var ptr models.PaymentTransactionsResourceDao
+							mockTransformer.EXPECT().GetTransactionResource(pr, pdr, paymentResourceID).Return(ptr, nil).Times(1)
+
+							Convey("Which is also committed to the DB successfully", func() {
+
+								mockDao.EXPECT().CreatePaymentTransactionsResource(&ptr).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+
+									// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
+									endConsumerProcess(svc, c)
+									return nil
+								})
+
+								svc.Start(wg, c)
+							})
+						})
+					})
+				})
+			})
+		})
+	})
+
 }
