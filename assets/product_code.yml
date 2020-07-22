@@ -4,3 +4,7 @@ product_code:
   certificate-same-day: 27004
   certificate: 27007
   certificate-additional-copy: 27009
+  certified-copy-same-day: 27000
+  certified-copy: 27002
+  certified-copy-incorporation-same-day: 27010
+  certified-copy-incorporation: 27012
