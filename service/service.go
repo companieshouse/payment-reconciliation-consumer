@@ -231,7 +231,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							svc.MaskSensitiveFields(&paymentResponse)
 
 							//Get Eshu resource
-							eshu, err := svc.Transformer.GetEshuResource(paymentResponse, paymentDetails, pp.ResourceURI)
+							eshu, err := svc.Transformer.GetEshuResources(paymentResponse, paymentDetails, pp.ResourceURI)
 							if err != nil {
 								log.Error(err, log.Data{"message_offset": message.Offset})
 								svc.HandleError(err, message.Offset, &paymentDetails)
@@ -246,7 +246,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							}
 
 							//Build Payment Transaction database object
-							payTrans, err := svc.Transformer.GetTransactionResource(paymentResponse, paymentDetails, pp.ResourceURI)
+							payTrans, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetails, pp.ResourceURI)
 							if err != nil {
 								log.Error(err, log.Data{"message_offset": message.Offset})
 								svc.HandleError(err, message.Offset, &paymentDetails)

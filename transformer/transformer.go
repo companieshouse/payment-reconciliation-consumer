@@ -10,8 +10,8 @@ import (
 
 // Transformer provides an interface by which to transform payment models to reconciliation entities
 type Transformer interface {
-	GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) ([]models.EshuResourceDao, error)
-	GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) ([]models.PaymentTransactionsResourceDao, error)
+	GetEshuResources(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) ([]models.EshuResourceDao, error)
+	GetTransactionResources(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) ([]models.PaymentTransactionsResourceDao, error)
 }
 
 // Transform implements the Transformer interface
@@ -23,8 +23,8 @@ func New() *Transform {
 	return &Transform{}
 }
 
-// GetEshuResource transforms payment data into Eshu resource entities
-func (t *Transform) GetEshuResource(payment data.PaymentResponse,
+// GetEshuResources transforms payment data into Eshu resource entities
+func (t *Transform) GetEshuResources(payment data.PaymentResponse,
 	paymentDetails data.PaymentDetailsResponse,
 	paymentId string) ([]models.EshuResourceDao, error) {
 
@@ -61,8 +61,8 @@ func (t *Transform) GetEshuResource(payment data.PaymentResponse,
 	return eshuResources, nil
 }
 
-// GetTransactionResource transforms payment data into payment transaction resource entities
-func (t *Transform) GetTransactionResource(payment data.PaymentResponse,
+// GetTransactionResources transforms payment data into payment transaction resource entities
+func (t *Transform) GetTransactionResources(payment data.PaymentResponse,
 	paymentDetails data.PaymentDetailsResponse,
 	paymentId string) ([]models.PaymentTransactionsResourceDao, error) {
 

@@ -34,32 +34,32 @@ func (m *MockTransformer) EXPECT() *MockTransformerMockRecorder {
 	return m.recorder
 }
 
-// GetEshuResource mocks base method
-func (m *MockTransformer) GetEshuResource(arg0 data.PaymentResponse, arg1 data.PaymentDetailsResponse, arg2 string) ([]models.EshuResourceDao, error) {
+// GetEshuResources mocks base method
+func (m *MockTransformer) GetEshuResources(arg0 data.PaymentResponse, arg1 data.PaymentDetailsResponse, arg2 string) ([]models.EshuResourceDao, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEshuResource", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetEshuResources", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]models.EshuResourceDao)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetEshuResource indicates an expected call of GetEshuResource
+// GetEshuResources indicates an expected call of GetEshuResources
 func (mr *MockTransformerMockRecorder) GetEshuResource(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEshuResource", reflect.TypeOf((*MockTransformer)(nil).GetEshuResource), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEshuResources", reflect.TypeOf((*MockTransformer)(nil).GetEshuResources), arg0, arg1, arg2)
 }
 
-// GetTransactionResource mocks base method
-func (m *MockTransformer) GetTransactionResource(arg0 data.PaymentResponse, arg1 data.PaymentDetailsResponse, arg2 string) ([]models.PaymentTransactionsResourceDao, error) {
+// GetTransactionResources mocks base method
+func (m *MockTransformer) GetTransactionResources(arg0 data.PaymentResponse, arg1 data.PaymentDetailsResponse, arg2 string) ([]models.PaymentTransactionsResourceDao, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetTransactionResource", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "GetTransactionResources", arg0, arg1, arg2)
 	ret0, _ := ret[0].([]models.PaymentTransactionsResourceDao)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetTransactionResource indicates an expected call of GetTransactionResource
+// GetTransactionResources indicates an expected call of GetTransactionResources
 func (mr *MockTransformerMockRecorder) GetTransactionResource(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionResource", reflect.TypeOf((*MockTransformer)(nil).GetTransactionResource), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionResources", reflect.TypeOf((*MockTransformer)(nil).GetTransactionResources), arg0, arg1, arg2)
 }
