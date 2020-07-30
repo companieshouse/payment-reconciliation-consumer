@@ -230,35 +230,40 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							// We need to remove sensitive data fields for secure applications.
 							svc.MaskSensitiveFields(&paymentResponse)
 
-							//Get Eshu resource
-							eshu, err := svc.Transformer.GetEshuResources(paymentResponse, paymentDetails, pp.ResourceURI)
+							//Get Eshu resources
+							eshus, err := svc.Transformer.GetEshuResources(paymentResponse, paymentDetails, pp.ResourceURI)
 							if err != nil {
 								log.Error(err, log.Data{"message_offset": message.Offset})
 								svc.HandleError(err, message.Offset, &paymentDetails)
 							}
 
-							//Add Eshu object to the Database
-							err = svc.DAO.CreateEshuResource(&eshu[0])
-							if err != nil {
-								log.Error(err, log.Data{"message": "failed to create eshu request in database",
-									"data": eshu})
-								svc.HandleError(err, message.Offset, &eshu)
+							//Add Eshu objects to the Database
+							for _, eshu := range eshus {
+								err = svc.DAO.CreateEshuResource(&eshu)
+								if err != nil {
+									log.Error(err, log.Data{"message": "failed to create eshu request in database",
+										"data": eshu})
+									svc.HandleError(err, message.Offset, &eshus)
+								}
 							}
 
-							//Build Payment Transaction database object
-							payTrans, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetails, pp.ResourceURI)
+							//Build Payment Transaction database objects
+							txns, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetails, pp.ResourceURI)
 							if err != nil {
 								log.Error(err, log.Data{"message_offset": message.Offset})
 								svc.HandleError(err, message.Offset, &paymentDetails)
 							}
 
-							//Add Payment Transaction to the Database
-							err = svc.DAO.CreatePaymentTransactionsResource(&payTrans[0])
-							if err != nil {
-								log.Error(err, log.Data{"message": "failed to create production request in database",
-									"data": payTrans})
-								svc.HandleError(err, message.Offset, &payTrans)
+							//Add Payment Transactions to the Database
+							for _, txn := range txns {
+								err = svc.DAO.CreatePaymentTransactionsResource(&txn)
+								if err != nil {
+									log.Error(err, log.Data{"message": "failed to create production request in database",
+										"data": txn})
+									svc.HandleError(err, message.Offset, &txns)
+								}
 							}
+
 						}
 					}
 				}
