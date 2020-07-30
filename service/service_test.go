@@ -12,6 +12,7 @@ import (
 	"github.com/companieshouse/payment-reconciliation-consumer/models"
 	"github.com/companieshouse/payment-reconciliation-consumer/payment"
 	_ "github.com/companieshouse/payment-reconciliation-consumer/testing"
+	"github.com/companieshouse/payment-reconciliation-consumer/testutil"
 	"github.com/companieshouse/payment-reconciliation-consumer/transformer"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
@@ -22,6 +23,7 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 const paymentsAPIUrl = "paymentsAPIUrl"
@@ -392,45 +394,70 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 
 		Convey("When the payment corresponding to the message is fetched successfully", func() {
 
-			cost := data.Cost{
-				ClassOfPayment: []string{classOfPayment},
-			}
-
-			pr := data.PaymentResponse{
-				CompanyNumber: "123456",
-				Costs:         []data.Cost{cost},
-			}
-
-			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+			paymentsAPI := payment.Fetch{}
+			mockHttpClient := testutil.
+				CreateMockClient(true, 200, testutil.CertifiedCopiesOrderGetPaymentSessionResponse)
+			mockPayment.EXPECT().
+				GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).
+				Return(paymentsAPI.GetPayment("http://test-url.com", mockHttpClient, "")).
+				Times(1)
 
 			Convey("And the payment details corresponding to the message are fetched successfully", func() {
 
-				pdr := data.PaymentDetailsResponse{
-					PaymentStatus: "accepted",
+				paymentDetailsResponse := data.PaymentDetailsResponse{
+					PaymentStatus:   "accepted",
+					TransactionDate: "2020-07-27T09:07:12.864Z",
 				}
-				mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
+				mockPayment.EXPECT().
+					GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details",
+						svc.Client,
+						apiKey).
+					Return(paymentDetailsResponse, 200, nil).
+					Times(1)
 
-				Convey("Then an Eshu resource is constructed", func() {
+				Convey("Then an Eshu (product) resource is constructed", func() {
 
-					var er models.EshuResourceDao
-					// TODO GCI-1032 Anything required here? transform.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(er, nil).Times(1)
+					expectedTransactionDate, _ := time.Parse(time.RFC3339Nano, paymentDetailsResponse.TransactionDate)
+					expectedProduct := models.EshuResourceDao{
+						PaymentRef:      "XpaymentResourceID",
+						ProductCode:     27000,
+						CompanyNumber:   "00006400",
+						FilingDate:      "",
+						MadeUpdate:      "",
+						TransactionDate: expectedTransactionDate,
+					}
 
 					Convey("And committed to the DB successfully", func() {
-						mockDao.EXPECT().CreateEshuResource(&er).Return(nil).Times(1)
+						mockDao.EXPECT().CreateEshuResource(&expectedProduct).Return(nil).Times(1)
 
 						Convey("And a payment transactions resource is constructed", func() {
 
-							var ptr models.PaymentTransactionsResourceDao
-							// TODO GCI-1032 Anything required here? transform.EXPECT().GetTransactionResource(pr, pdr, paymentResourceID).Return(ptr, nil).Times(1)
+							expectedTransaction := models.PaymentTransactionsResourceDao{
+								TransactionID:     "XpaymentResourceID",
+								TransactionDate:   expectedTransactionDate,
+								Email:             "demo@ch.gov.uk",
+								PaymentMethod:     "GovPay",
+								Amount:            "200.00",
+								CompanyNumber:     "00006400",
+								TransactionType:   "Immediate bill",
+								OrderReference:    "Payments reconciliation testing payment session ref",
+								Status:            "accepted",
+								UserID:            "system",
+								OriginalReference: "",
+								DisputeDetails:    "",
+							}
 
 							Convey("Which is also committed to the DB successfully", func() {
 
-								mockDao.EXPECT().CreatePaymentTransactionsResource(&ptr).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+								mockDao.EXPECT().
+									CreatePaymentTransactionsResource(&expectedTransaction).
+									DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 
-									// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
-									endConsumerProcess(svc, c)
-									return nil
-								})
+										// Since this is the last thing the service does, we send a signal to kill
+										// the consumer process gracefully
+										endConsumerProcess(svc, c)
+										return nil
+									})
 
 								svc.Start(wg, c)
 							})
