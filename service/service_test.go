@@ -203,7 +203,7 @@ func TestUnitStart(t *testing.T) {
 	})
 
 	Convey("Successful process of a single Kafka message for a certified copies 'orderable-item' payment with multiple costs", t, func() {
-		processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
+		processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap)
 	})
 }
 
@@ -375,8 +375,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 // reconciliation records capturing all of the costs involved.
 func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 	ctrl *gomock.Controller,
-	productMap *config.ProductMap,
-	classOfPayment string) {
+	productMap *config.ProductMap) {
 
 	wg := &sync.WaitGroup{}
 	wg.Add(1)
