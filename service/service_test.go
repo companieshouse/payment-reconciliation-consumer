@@ -11,6 +11,7 @@ import (
 	"github.com/companieshouse/payment-reconciliation-consumer/data"
 	"github.com/companieshouse/payment-reconciliation-consumer/models"
 	"github.com/companieshouse/payment-reconciliation-consumer/payment"
+	_ "github.com/companieshouse/payment-reconciliation-consumer/testing"
 	"github.com/companieshouse/payment-reconciliation-consumer/transformer"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
@@ -43,6 +44,23 @@ func createMockService(productMap *config.ProductMap, mockPayment *payment.MockF
 	}
 }
 
+// TODO GCI-1032 A better name?
+func createLessMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, transform *transformer.Transform, mockDao *dao.MockDAO) *Service {
+
+	return &Service{
+		Producer:       createMockProducer(),
+		PpSchema:       getDefaultSchema(),
+		Payments:       mockPayment,
+		Transformer:    transform,
+		DAO:            mockDao,
+		PaymentsAPIURL: paymentsAPIUrl,
+		APIKey:         apiKey,
+		ProductMap:     productMap,
+		Client:         &http.Client{},
+		StopAtOffset:   int64(-1),
+	}
+}
+
 func createMockConsumerWithMessage() *consumer.GroupConsumer {
 
 	return &consumer.GroupConsumer{
@@ -60,7 +78,7 @@ func createMockProducer() *producer.Producer {
 func createProductMap() (*config.ProductMap, error) {
 	var productMap *config.ProductMap
 
-	filename, err := filepath.Abs("../assets/product_code.yml")
+	filename, err := filepath.Abs("assets/product_code.yml")
 	if err != nil {
 		return nil, err
 	}
@@ -182,6 +200,9 @@ func TestUnitStart(t *testing.T) {
 		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
 	})
 
+	Convey("Successful process of a single Kafka message for a certified copies 'orderable-item' payment with multiple costs", t, func() {
+		processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
+	})
 }
 
 func TestUnitMaskSensitiveFields(t *testing.T) {
@@ -345,5 +366,78 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 			})
 		})
 	})
+}
 
+// processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords asserts that a payment of the class specified
+// will result in a call to get the payment details and the creation of eshu and payment_transaction
+// reconciliation records capturing all of the costs involved.
+func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
+	ctrl *gomock.Controller,
+	productMap *config.ProductMap,
+	classOfPayment string) {
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	c := make(chan os.Signal)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	transform := transformer.New()
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createLessMockService(productMap, mockPayment, transform, mockDao)
+
+	Convey("Given a message is readily available for the service to consume", func() {
+
+		svc.Consumer = createMockConsumerWithMessage()
+
+		Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+			cost := data.Cost{
+				ClassOfPayment: []string{classOfPayment},
+			}
+
+			pr := data.PaymentResponse{
+				CompanyNumber: "123456",
+				Costs:         []data.Cost{cost},
+			}
+
+			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+
+			Convey("And the payment details corresponding to the message are fetched successfully", func() {
+
+				pdr := data.PaymentDetailsResponse{
+					PaymentStatus: "accepted",
+				}
+				mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
+
+				Convey("Then an Eshu resource is constructed", func() {
+
+					var er models.EshuResourceDao
+					// TODO GCI-1032 Anything required here? transform.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(er, nil).Times(1)
+
+					Convey("And committed to the DB successfully", func() {
+						mockDao.EXPECT().CreateEshuResource(&er).Return(nil).Times(1)
+
+						Convey("And a payment transactions resource is constructed", func() {
+
+							var ptr models.PaymentTransactionsResourceDao
+							// TODO GCI-1032 Anything required here? transform.EXPECT().GetTransactionResource(pr, pdr, paymentResourceID).Return(ptr, nil).Times(1)
+
+							Convey("Which is also committed to the DB successfully", func() {
+
+								mockDao.EXPECT().CreatePaymentTransactionsResource(&ptr).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+
+									// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
+									endConsumerProcess(svc, c)
+									return nil
+								})
+
+								svc.Start(wg, c)
+							})
+						})
+					})
+				})
+			})
+		})
+	})
 }
