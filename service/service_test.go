@@ -340,16 +340,23 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 				Convey("Then an Eshu resource is constructed", func() {
 
+					// TODO GCI-1032 Is there a more concise way to initialise this slice?
 					var er models.EshuResourceDao
-					mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(er, nil).Times(1)
+					ers := []models.EshuResourceDao{}
+					ers = append(ers, er)
+					mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(ers, nil).Times(1)
 
 					Convey("And committed to the DB successfully", func() {
-						mockDao.EXPECT().CreateEshuResource(&er).Return(nil).Times(1)
+						mockDao.EXPECT().CreateEshuResource(&ers[0]).Return(nil).Times(1)
 
 						Convey("And a payment transactions resource is constructed", func() {
 
+							// TODO GCI-1032 Is there a more concise way to initialise this slice?
 							var ptr models.PaymentTransactionsResourceDao
-							mockTransformer.EXPECT().GetTransactionResource(pr, pdr, paymentResourceID).Return(ptr, nil).Times(1)
+							ptrs := []models.PaymentTransactionsResourceDao{}
+							ptrs = append(ptrs, ptr)
+							mockTransformer.EXPECT().
+								GetTransactionResource(pr, pdr, paymentResourceID).Return(ptrs, nil).Times(1)
 
 							Convey("Which is also committed to the DB successfully", func() {
 
