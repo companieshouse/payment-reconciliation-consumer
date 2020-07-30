@@ -55,6 +55,97 @@ const paymentDetailsTestData = `{
     "payment_status": "accepted"
 }`
 
+// TODO GCI-1032 Would a better response, eg with differing costs, be useful?
+const certifiedCopiesOrderGetPaymentSessionResponse = `{
+    "amount": "200.00",
+    "completed_at": "2020-07-27T09:07:12.864Z",
+    "created_at": "2020-07-27T08:55:06.978Z",
+    "created_by": {
+        "email": "demo@ch.gov.uk",
+        "forename": "",
+        "id": "67ZeMsvAEgkBWs7tNKacdrPvOmQ",
+        "surname": ""
+    },
+    "description": "",
+    "links": {
+        "journey": "https://payments.cidev.aws.chdev.org/payments/FIyWA4nsgUMyDak/pay",
+        "resource": "https://api.cidev.aws.chdev.org/basket/checkouts/ORD-845315-958394/payment",
+        "self": "payments/FIyWA4nsgUMyDak"
+    },
+    "payment_method": "GovPay",
+    "reference": "Payments reconciliation testing payment session ref",
+    "company_number": "00006400",
+    "status": "paid",
+    "costs": [
+        {
+            "amount": "50",
+            "available_payment_methods": [
+                "credit-card"
+            ],
+            "class_of_payment": [
+                "orderable-item"
+            ],
+            "description": "certified copy for company 00006400",
+            "description_identifier": "certified-copy",
+            "product_type": "certified-copy-same-day",
+            "description_values": {
+                "certified-copy": "certified copy for company 00006400",
+                "company_number": "00006400"
+            }
+        },
+        {
+            "amount": "50",
+            "available_payment_methods": [
+                "credit-card"
+            ],
+            "class_of_payment": [
+                "orderable-item"
+            ],
+            "description": "certified copy for company 00006400",
+            "description_identifier": "certified-copy",
+            "product_type": "certified-copy-same-day",
+            "description_values": {
+                "certified-copy": "certified copy for company 00006400",
+                "company_number": "00006400"
+            }
+        },
+        {
+            "amount": "50",
+            "available_payment_methods": [
+                "credit-card"
+            ],
+            "class_of_payment": [
+                "orderable-item"
+            ],
+            "description": "certified copy for company 00006400",
+            "description_identifier": "certified-copy",
+            "product_type": "certified-copy-same-day",
+            "description_values": {
+                "certified-copy": "certified copy for company 00006400",
+                "company_number": "00006400"
+            }
+        },
+        {
+            "amount": "50",
+            "available_payment_methods": [
+                "credit-card"
+            ],
+            "class_of_payment": [
+                "orderable-item"
+            ],
+            "description": "certified copy for company 00006400",
+            "description_identifier": "certified-copy",
+            "product_type": "certified-copy-same-day",
+            "description_values": {
+                "certified-copy": "certified copy for company 00006400",
+                "company_number": "00006400"
+            }
+        }
+    ],
+    "etag": "a7b4eff1d3025251a659225dfbe06827a6a259324af14699f2f7884e",
+    "kind": "payment-session#payment-session"
+}`
+
 func createMockClient(hasResponseBody bool, status int, testData string) *http.Client {
 
 	mockStreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
@@ -96,6 +187,17 @@ func TestUnitGetPayment(t *testing.T) {
 		_, statusCode, err := p.GetPayment("http://test-url.com", createMockClient(false, 404, paymentTestData), "")
 		So(err, ShouldNotBeNil)
 		So(statusCode, ShouldEqual, 404)
+	})
+
+	Convey("test successful get request for certified copies order payment session contains expected costs", t, func() {
+		b, statusCode, err := p.GetPayment("http://test-url.com", createMockClient(true, 200, certifiedCopiesOrderGetPaymentSessionResponse), "")
+		So(err, ShouldBeNil)
+		So(statusCode, ShouldEqual, 200)
+		So(b, ShouldNotBeEmpty)
+		So(len(b.Costs), ShouldEqual, 4)
+		for _, cost := range b.Costs {
+			So(cost.Amount, ShouldEqual, `50`)
+		}
 	})
 }
 
