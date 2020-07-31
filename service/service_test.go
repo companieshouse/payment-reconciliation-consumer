@@ -433,10 +433,13 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 			paymentsAPI := payment.Fetch{}
 			mockHttpClient := testutil.
 				CreateMockClient(true, 200, testutil.CertifiedCopiesOrderGetPaymentSessionResponse)
+			// TODO GCI-1032 Ideally we would not have a race condition that means the service gets to start
+			// processing a second message before shutdown is complete.
 			mockPayment.EXPECT().
 				GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).
 				Return(paymentsAPI.GetPayment("http://test-url.com", mockHttpClient, "")).
-				Times(1)
+				MinTimes(1).
+				MaxTimes(2)
 
 			Convey("And the payment details corresponding to the message are fetched successfully", func() {
 
