@@ -75,6 +75,7 @@ func createMockConsumerWithMessage() *consumer.GroupConsumer {
 
 	return &consumer.GroupConsumer{
 		GConsumer: MockConsumer{},
+		Group:     MockGroup{},
 	}
 }
 
@@ -141,6 +142,16 @@ func (m MockConsumer) Messages() <-chan *sarama.ConsumerMessage {
 }
 
 func (m MockConsumer) Errors() <-chan error {
+	return nil
+}
+
+type MockGroup struct{}
+
+func (m MockGroup) MarkOffset(msg *sarama.ConsumerMessage, metadata string) {
+
+}
+
+func (m MockGroup) CommitOffsets() error {
 	return nil
 }
 
