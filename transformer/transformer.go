@@ -40,15 +40,6 @@ func (t *Transform) GetEshuResources(payment data.PaymentResponse,
 		return eshuResources, err
 	}
 
-	//eshuResources = models.EshuResourceDao{
-	//	PaymentRef:      "X" + paymentId,
-	//	ProductCode:     productMap.Codes[payment.Costs[0].ProductType],
-	//	CompanyNumber:   payment.CompanyNumber,
-	//	FilingDate:      "",
-	//	MadeUpdate:      "",
-	//	TransactionDate: transactionDate,
-	//}
-
 	eshuResources = append(eshuResources, models.EshuResourceDao{
 		PaymentRef:      "X" + paymentId,
 		ProductCode:     productMap.Codes[payment.Costs[0].ProductType],
