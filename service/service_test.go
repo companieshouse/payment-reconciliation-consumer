@@ -68,6 +68,7 @@ func createMockServiceWithRealTransformer(productMap *config.ProductMap,
 		ProductMap:     productMap,
 		Client:         &http.Client{},
 		StopAtOffset:   int64(-1),
+		Topic:          "test",
 	}
 }
 
