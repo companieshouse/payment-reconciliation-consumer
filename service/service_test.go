@@ -50,14 +50,17 @@ func createMockService(productMap *config.ProductMap, mockPayment *payment.MockF
 	}
 }
 
-// TODO GCI-1032 A better name?
-func createLessMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, transform *transformer.Transform, mockDao *dao.MockDAO) *Service {
+// Creates a somewhat mocked out Service instance that importantly uses a real Transformer (Transform)
+// allowing a form of integration testing as far as the service and transformer are concerned.
+func createMockServiceWithRealTransformer(productMap *config.ProductMap,
+	mockPayment *payment.MockFetcher,
+	mockDao *dao.MockDAO) *Service {
 
 	return &Service{
 		Producer:       createMockProducer(),
 		PpSchema:       getDefaultSchema(),
 		Payments:       mockPayment,
-		Transformer:    transform,
+		Transformer:    transformer.New(),
 		DAO:            mockDao,
 		PaymentsAPIURL: paymentsAPIUrl,
 		APIKey:         apiKey,
@@ -404,10 +407,9 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 	c := make(chan os.Signal)
 
 	mockPayment := payment.NewMockFetcher(ctrl)
-	transform := transformer.New()
 	mockDao := dao.NewMockDAO(ctrl)
 
-	svc := createLessMockService(productMap, mockPayment, transform, mockDao)
+	svc := createMockServiceWithRealTransformer(productMap, mockPayment, mockDao)
 
 	Convey("Given a message is readily available for the service to consume", func() {
 
