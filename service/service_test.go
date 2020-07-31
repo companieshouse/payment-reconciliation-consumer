@@ -301,8 +301,6 @@ func TestUnitDoNotMaskNormalFields(t *testing.T) {
 
 func TestUnitCertifiedCopies(t *testing.T) {
 
-	log.LogLevel = log.TRACE
-
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
