@@ -406,7 +406,7 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 	productMap *config.ProductMap) {
 
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
+	wg.Add(numberOfFilingHistoryDocumentCosts)
 	c := make(chan os.Signal)
 
 	mockPayment := payment.NewMockFetcher(ctrl)
@@ -481,18 +481,20 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 								mockDao.EXPECT().
 									CreatePaymentTransactionsResource(&expectedTransaction).
 									DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-
-										log.Info("calling endConsumerProcess()")
-										// Since this is the last thing the service does, we send a signal to kill
-										// the consumer process gracefully
-										// TODO GCI-1032 Why does this sometimes result in
-										// "panic: send on closed channel"?
-										endConsumerProcess(svc, c)
+										log.Info("CreatePaymentTransactionsResource() invocation")
+										wg.Done()
 										return nil
 									}).
 									Times(numberOfFilingHistoryDocumentCosts)
 
-								svc.Start(wg, c)
+								log.Info("Starting service under test")
+								go svc.Start(wg, c)
+								log.Info("Waiting for all expected actions to complete")
+								wg.Wait()
+								log.Info("Finished waiting for all expected actions")
+								// Since this is the last thing the service does, we send a signal to kill
+								// the consumer process gracefully
+								endConsumerProcess(svc, c)
 							})
 						})
 					})
