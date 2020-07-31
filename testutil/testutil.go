@@ -31,7 +31,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
     "status": "paid",
     "costs": [
         {
-            "amount": "50",
+            "amount": "50.00",
             "available_payment_methods": [
                 "credit-card"
             ],
@@ -47,7 +47,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
             }
         },
         {
-            "amount": "50",
+            "amount": "50.00",
             "available_payment_methods": [
                 "credit-card"
             ],
@@ -63,7 +63,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
             }
         },
         {
-            "amount": "50",
+            "amount": "50.00",
             "available_payment_methods": [
                 "credit-card"
             ],
@@ -79,7 +79,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
             }
         },
         {
-            "amount": "50",
+            "amount": "50.00",
             "available_payment_methods": [
                 "credit-card"
             ],

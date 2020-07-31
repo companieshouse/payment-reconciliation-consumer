@@ -479,6 +479,7 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 									CreatePaymentTransactionsResource(&expectedTransaction).
 									DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 
+										log.Info("calling endConsumerProcess()")
 										// Since this is the last thing the service does, we send a signal to kill
 										// the consumer process gracefully
 										// TODO GCI-1032 Why does this sometimes result in
