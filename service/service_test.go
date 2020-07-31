@@ -47,6 +47,7 @@ func createMockService(productMap *config.ProductMap, mockPayment *payment.MockF
 		ProductMap:     productMap,
 		Client:         &http.Client{},
 		StopAtOffset:   int64(-1),
+		Topic:          "test",
 	}
 }
 
