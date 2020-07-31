@@ -481,6 +481,8 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 
 										// Since this is the last thing the service does, we send a signal to kill
 										// the consumer process gracefully
+										// TODO GCI-1032 Why does this sometimes result in
+										// "panic: send on closed channel"?
 										endConsumerProcess(svc, c)
 										return nil
 									}).
