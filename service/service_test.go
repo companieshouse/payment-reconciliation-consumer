@@ -30,6 +30,9 @@ const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
 
+// TODO GCI-1032 Consider whether this should be derived
+const numberOfFilingHistoryDocumentCosts = 4
+
 func createMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, mockTransformer *transformer.MockTransformer, mockDao *dao.MockDAO) *Service {
 
 	return &Service{
@@ -434,7 +437,7 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 					}
 
 					Convey("And committed to the DB successfully", func() {
-						mockDao.EXPECT().CreateEshuResource(&expectedProduct).Return(nil).Times(1)
+						mockDao.EXPECT().CreateEshuResource(&expectedProduct).Return(nil).Times(numberOfFilingHistoryDocumentCosts)
 
 						Convey("And a payment transactions resource is constructed", func() {
 
@@ -463,7 +466,7 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 										// the consumer process gracefully
 										endConsumerProcess(svc, c)
 										return nil
-									})
+									}).Times(numberOfFilingHistoryDocumentCosts)
 
 								svc.Start(wg, c)
 							})
