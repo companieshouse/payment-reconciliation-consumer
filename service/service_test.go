@@ -205,10 +205,6 @@ func TestUnitStart(t *testing.T) {
 	Convey("Successful process of a single Kafka message for an 'orderable-item' payment", t, func() {
 		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
 	})
-
-	Convey("Successful process of a single Kafka message for a certified copies 'orderable-item' payment with multiple costs", t, func() {
-		processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap)
-	})
 }
 
 func TestUnitMaskSensitiveFields(t *testing.T) {
@@ -285,6 +281,21 @@ func TestUnitDoNotMaskNormalFields(t *testing.T) {
 		So(pdr.CreatedBy.Email, ShouldEqual, "test@ch.gov.uk")
 	})
 
+}
+
+func TestUnitCertifiedCopies(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	productMap, err := createProductMap()
+	if err != nil {
+		log.Error(fmt.Errorf("error initialising productMap: %s", err), nil)
+	}
+
+	Convey("Successful process of a single Kafka message for a certified copies 'orderable-item' payment with multiple costs", t, func() {
+		processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap)
+	})
 }
 
 // endConsumerProcess facilitates service termination
