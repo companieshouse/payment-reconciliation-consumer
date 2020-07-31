@@ -40,14 +40,16 @@ func (t *Transform) GetEshuResources(payment data.PaymentResponse,
 		return eshuResources, err
 	}
 
-	eshuResources = append(eshuResources, models.EshuResourceDao{
-		PaymentRef:      "X" + paymentId,
-		ProductCode:     productMap.Codes[payment.Costs[0].ProductType],
-		CompanyNumber:   payment.CompanyNumber,
-		FilingDate:      "",
-		MadeUpdate:      "",
-		TransactionDate: transactionDate,
-	})
+	for _, cost := range payment.Costs {
+		eshuResources = append(eshuResources, models.EshuResourceDao{
+			PaymentRef:      "X" + paymentId,
+			ProductCode:     productMap.Codes[cost.ProductType],
+			CompanyNumber:   payment.CompanyNumber,
+			FilingDate:      "",
+			MadeUpdate:      "",
+			TransactionDate: transactionDate,
+		})
+	}
 
 	return eshuResources, nil
 }
@@ -64,20 +66,23 @@ func (t *Transform) GetTransactionResources(payment data.PaymentResponse,
 		return paymentTransactionsResources, err
 	}
 
-	paymentTransactionsResources = append(paymentTransactionsResources, models.PaymentTransactionsResourceDao{
-		TransactionID:     "X" + paymentId,
-		TransactionDate:   transactionDate,
-		Email:             payment.CreatedBy.Email,
-		PaymentMethod:     payment.PaymentMethod,
-		Amount:            payment.Amount,
-		CompanyNumber:     payment.CompanyNumber,
-		TransactionType:   "Immediate bill",
-		OrderReference:    strings.Replace(payment.Reference, "_", "-", -1),
-		Status:            paymentDetails.PaymentStatus,
-		UserID:            "system",
-		OriginalReference: "",
-		DisputeDetails:    "",
-	})
+	// TODO GCI-1032 So how is Finance reconciliation going to tally eshus (products) with transactions?
+	for _, cost := range payment.Costs {
+		paymentTransactionsResources = append(paymentTransactionsResources, models.PaymentTransactionsResourceDao{
+			TransactionID:     "X" + paymentId,
+			TransactionDate:   transactionDate,
+			Email:             payment.CreatedBy.Email,
+			PaymentMethod:     payment.PaymentMethod,
+			Amount:            cost.Amount,
+			CompanyNumber:     payment.CompanyNumber,
+			TransactionType:   "Immediate bill",
+			OrderReference:    strings.Replace(payment.Reference, "_", "-", -1),
+			Status:            paymentDetails.PaymentStatus,
+			UserID:            "system",
+			OriginalReference: "",
+			DisputeDetails:    "",
+		})
+	}
 
 	return paymentTransactionsResources, nil
 }

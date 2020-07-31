@@ -30,8 +30,9 @@ const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
 
-// TODO GCI-1032 Consider whether this should be derived
+// TODO GCI-1032 Consider whether these should be obtained or derived
 const numberOfFilingHistoryDocumentCosts = 4
+const filingHistoryDocumentCostAmount = "50.00"
 
 func createMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, mockTransformer *transformer.MockTransformer, mockDao *dao.MockDAO) *Service {
 
@@ -437,7 +438,10 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 					}
 
 					Convey("And committed to the DB successfully", func() {
-						mockDao.EXPECT().CreateEshuResource(&expectedProduct).Return(nil).Times(numberOfFilingHistoryDocumentCosts)
+
+						mockDao.EXPECT().
+							CreateEshuResource(&expectedProduct).Return(nil).
+							Times(numberOfFilingHistoryDocumentCosts)
 
 						Convey("And a payment transactions resource is constructed", func() {
 
@@ -446,7 +450,7 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 								TransactionDate:   expectedTransactionDate,
 								Email:             "demo@ch.gov.uk",
 								PaymentMethod:     "GovPay",
-								Amount:            "200.00",
+								Amount:            filingHistoryDocumentCostAmount,
 								CompanyNumber:     "00006400",
 								TransactionType:   "Immediate bill",
 								OrderReference:    "Payments reconciliation testing payment session ref",
@@ -466,7 +470,8 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 										// the consumer process gracefully
 										endConsumerProcess(svc, c)
 										return nil
-									}).Times(numberOfFilingHistoryDocumentCosts)
+									}).
+									Times(numberOfFilingHistoryDocumentCosts)
 
 								svc.Start(wg, c)
 							})
