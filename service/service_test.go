@@ -371,10 +371,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 				Convey("Then an Eshu resource is constructed", func() {
 
-					// TODO GCI-1032 Is there a more concise way to initialise this slice?
-					var er models.EshuResourceDao
-					ers := []models.EshuResourceDao{}
-					ers = append(ers, er)
+					ers := []models.EshuResourceDao{{}}
 					mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(ers, nil).Times(1)
 
 					Convey("And committed to the DB successfully", func() {
@@ -382,16 +379,13 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 						Convey("And a payment transactions resource is constructed", func() {
 
-							// TODO GCI-1032 Is there a more concise way to initialise this slice?
-							var ptr models.PaymentTransactionsResourceDao
-							ptrs := []models.PaymentTransactionsResourceDao{}
-							ptrs = append(ptrs, ptr)
+							ptrs := []models.PaymentTransactionsResourceDao{{}}
 							mockTransformer.EXPECT().
 								GetTransactionResource(pr, pdr, paymentResourceID).Return(ptrs, nil).Times(1)
 
 							Convey("Which is also committed to the DB successfully", func() {
 
-								mockDao.EXPECT().CreatePaymentTransactionsResource(&ptr).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+								mockDao.EXPECT().CreatePaymentTransactionsResource( /*&ptr*/ &ptrs[0]).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 
 									// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
 									endConsumerProcess(svc, c)
