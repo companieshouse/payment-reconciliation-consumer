@@ -29,6 +29,8 @@ import (
 const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
+const waitTimeoutSeconds = 1
+const timeout = waitTimeoutSeconds * time.Second
 
 func createMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, mockTransformer *transformer.MockTransformer, mockDao *dao.MockDAO) *Service {
 
@@ -381,7 +383,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 							Convey("Which is also committed to the DB successfully", func() {
 
-								mockDao.EXPECT().CreatePaymentTransactionsResource( /*&ptr*/ &ptrs[0]).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+								mockDao.EXPECT().CreatePaymentTransactionsResource(&ptrs[0]).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 
 									// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
 									endConsumerProcess(svc, c)
@@ -471,11 +473,10 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 						Convey("And a payment transactions resource is constructed", func() {
 
 							expectedTransaction := models.PaymentTransactionsResourceDao{
-								TransactionID:   "XpaymentResourceID",
-								TransactionDate: expectedTransactionDate,
-								Email:           "demo@ch.gov.uk",
-								PaymentMethod:   "GovPay",
-								// TODO GCI-1312 Why does an incorrect amount value here cause test to hang?
+								TransactionID:     "XpaymentResourceID",
+								TransactionDate:   expectedTransactionDate,
+								Email:             "demo@ch.gov.uk",
+								PaymentMethod:     "GovPay",
 								Amount:            expectedFilingHistoryDocumentCostAmount,
 								CompanyNumber:     "00006400",
 								TransactionType:   "Immediate bill",
@@ -500,8 +501,13 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 								log.Info("Starting service under test")
 								go svc.Start(wg, c)
 								log.Info("Waiting for all expected actions to complete")
-								wg.Wait()
-								log.Info("Finished waiting for all expected actions")
+								if waitTimeout(wg, timeout) {
+									log.Error(
+										fmt.Errorf("Timed out waiting %d seconds for expected actions",
+											waitTimeoutSeconds))
+								} else {
+									log.Info("Finished waiting for all expected actions")
+								}
 								// Since this is the last thing the service does, we send a signal to kill
 								// the consumer process gracefully
 								endConsumerProcess(svc, c)
@@ -512,4 +518,21 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 			})
 		})
 	})
+}
+
+// waitTimeout waits for the waitgroup for the specified max timeout.
+// Returns true if waiting timed out.
+// See https://stackoverflow.com/questions/32840687/timeout-for-waitgroup-wait.
+func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
+	c := make(chan struct{})
+	go func() {
+		defer close(c)
+		wg.Wait()
+	}()
+	select {
+	case <-c:
+		return false // completed normally
+	case <-time.After(timeout):
+		return true // timed out
+	}
 }
