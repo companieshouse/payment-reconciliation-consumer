@@ -30,10 +30,6 @@ const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
 
-// TODO GCI-1032 Consider whether these should be obtained or derived
-const numberOfFilingHistoryDocumentCosts = 4
-const filingHistoryDocumentCostAmount = "50.00" // TODO GCI-1312 Why does an incorrect value here cause test to hang?
-
 func createMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, mockTransformer *transformer.MockTransformer, mockDao *dao.MockDAO) *Service {
 
 	return &Service{
@@ -409,8 +405,14 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 	ctrl *gomock.Controller,
 	productMap *config.ProductMap) {
 
+	paymentsAPI := payment.Fetch{}
+	mockHttpClient := testutil.
+		CreateMockClient(true, 200, testutil.CertifiedCopiesOrderGetPaymentSessionResponse)
+	paymentResponse, status, _ := paymentsAPI.GetPayment("http://test-url.com", mockHttpClient, "")
+	expectedNumberOfFilingHistoryDocumentCosts := len(paymentResponse.Costs)
+
 	wg := &sync.WaitGroup{}
-	wg.Add(numberOfFilingHistoryDocumentCosts)
+	wg.Add(expectedNumberOfFilingHistoryDocumentCosts)
 	c := make(chan os.Signal)
 
 	mockPayment := payment.NewMockFetcher(ctrl)
@@ -424,14 +426,11 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 
 		Convey("When the payment corresponding to the message is fetched successfully", func() {
 
-			paymentsAPI := payment.Fetch{}
-			mockHttpClient := testutil.
-				CreateMockClient(true, 200, testutil.CertifiedCopiesOrderGetPaymentSessionResponse)
 			// TODO GCI-1032 Ideally we would not have a race condition that means the service gets to start
 			// processing a second message before shutdown is complete.
 			mockPayment.EXPECT().
 				GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).
-				Return(paymentsAPI.GetPayment("http://test-url.com", mockHttpClient, "")).
+				Return(paymentResponse, status, nil).
 				MinTimes(1).
 				MaxTimes(2)
 
@@ -462,18 +461,22 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 
 					Convey("And committed to the DB successfully", func() {
 
+						// TODO GCI-1312 This assumes all amounts are the same.
+						expectedFilingHistoryDocumentCostAmount := paymentResponse.Costs[0].Amount
+
 						mockDao.EXPECT().
 							CreateEshuResource(&expectedProduct).Return(nil).
-							Times(numberOfFilingHistoryDocumentCosts)
+							Times(expectedNumberOfFilingHistoryDocumentCosts)
 
 						Convey("And a payment transactions resource is constructed", func() {
 
 							expectedTransaction := models.PaymentTransactionsResourceDao{
-								TransactionID:     "XpaymentResourceID",
-								TransactionDate:   expectedTransactionDate,
-								Email:             "demo@ch.gov.uk",
-								PaymentMethod:     "GovPay",
-								Amount:            filingHistoryDocumentCostAmount,
+								TransactionID:   "XpaymentResourceID",
+								TransactionDate: expectedTransactionDate,
+								Email:           "demo@ch.gov.uk",
+								PaymentMethod:   "GovPay",
+								// TODO GCI-1312 Why does an incorrect amount value here cause test to hang?
+								Amount:            expectedFilingHistoryDocumentCostAmount,
 								CompanyNumber:     "00006400",
 								TransactionType:   "Immediate bill",
 								OrderReference:    "Payments reconciliation testing payment session ref",
@@ -492,7 +495,7 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 										wg.Done()
 										return nil
 									}).
-									Times(numberOfFilingHistoryDocumentCosts)
+									Times(expectedNumberOfFilingHistoryDocumentCosts)
 
 								log.Info("Starting service under test")
 								go svc.Start(wg, c)
