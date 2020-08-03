@@ -32,7 +32,7 @@ const paymentResourceID = "paymentResourceID"
 
 // TODO GCI-1032 Consider whether these should be obtained or derived
 const numberOfFilingHistoryDocumentCosts = 4
-const filingHistoryDocumentCostAmount = "50.00"
+const filingHistoryDocumentCostAmount = "50.00" // TODO GCI-1312 Why does an incorrect value here cause test to hang?
 
 func createMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, mockTransformer *transformer.MockTransformer, mockDao *dao.MockDAO) *Service {
 
