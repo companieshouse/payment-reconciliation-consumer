@@ -1,7 +1,5 @@
 package testutil
 
-// TODO GCI-1032 Refactor existing test code to use this where appropriate.
-
 import (
 	"net/http"
 	"net/http/httptest"
@@ -99,11 +97,11 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
     "kind": "payment-session#payment-session"
 }`
 
-func CreateMockClient(hasResponseBody bool, status int, testData string) *http.Client {
+func CreateMockClient(hasResponseBody bool, status int, responseBody string) *http.Client {
 
 	mockStreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		if hasResponseBody {
-			w.Write([]byte(testData))
+			w.Write([]byte(responseBody))
 		}
 		w.WriteHeader(status)
 	}))
