@@ -428,13 +428,10 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 
 		Convey("When the payment corresponding to the message is fetched successfully", func() {
 
-			// TODO GCI-1032 Ideally we would not have a race condition that means the service gets to start
-			// processing a second message before shutdown is complete.
 			mockPayment.EXPECT().
 				GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).
 				Return(paymentResponse, status, nil).
-				MinTimes(1).
-				MaxTimes(2)
+				Times(1)
 
 			Convey("And the payment details corresponding to the message are fetched successfully", func() {
 
@@ -469,7 +466,9 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 									wg,
 									mockDao,
 									expectedTransactionDate,
-									paymentResponse.Costs)
+									paymentResponse.Costs,
+									c,
+									svc)
 
 								log.Info("Starting service under test")
 								go svc.Start(wg, c)
@@ -481,9 +480,6 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 								} else {
 									log.Info("Finished waiting for all expected actions")
 								}
-								// Since this is the last thing the service does, we send a signal to kill
-								// the consumer process gracefully
-								endConsumerProcess(svc, c)
 							})
 						})
 					})
@@ -499,7 +495,7 @@ func expectProductsToBeCreated(
 	expectedCosts []data.Cost,
 	expectedNumberOfFilingHistoryDocumentCosts int) {
 	mockDao.EXPECT().
-		CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[0]))).
+		CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[1]))).
 		Return(nil).
 		Times(1)
 
@@ -536,7 +532,9 @@ func expectedProductCode(cost data.Cost) int {
 func expectTransactionsToBeCreated(wg *sync.WaitGroup,
 	mockDao *dao.MockDAO,
 	expectedTransactionDate time.Time,
-	expectedCosts []data.Cost) {
+	expectedCosts []data.Cost,
+	c chan os.Signal,
+	svc *Service) {
 
 	mockDao.EXPECT().
 		CreatePaymentTransactionsResource(
@@ -572,8 +570,11 @@ func expectTransactionsToBeCreated(wg *sync.WaitGroup,
 		CreatePaymentTransactionsResource(
 			expectedTransaction(expectedTransactionDate, expectedCosts[3].Amount)).
 		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-			log.Info("CreatePaymentTransactionsResource() invocation 3")
+			log.Info("CreatePaymentTransactionsResource() final invocation (3) - closing consumer")
 			wg.Done()
+			// Since this is the last thing the service does, we send a signal to kill
+			// the consumer process gracefully
+			endConsumerProcess(svc, c)
 			return nil
 		}).
 		Times(1)
