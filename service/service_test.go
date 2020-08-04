@@ -463,40 +463,19 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 
 					Convey("And committed to the DB successfully", func() {
 
-						// TODO GCI-1312 This assumes all amounts are the same.
-						expectedFilingHistoryDocumentCostAmount := paymentResponse.Costs[0].Amount
-
 						mockDao.EXPECT().
 							CreateEshuResource(&expectedProduct).Return(nil).
 							Times(expectedNumberOfFilingHistoryDocumentCosts)
 
 						Convey("And a payment transactions resource is constructed", func() {
 
-							expectedTransaction := models.PaymentTransactionsResourceDao{
-								TransactionID:     "XpaymentResourceID",
-								TransactionDate:   expectedTransactionDate,
-								Email:             "demo@ch.gov.uk",
-								PaymentMethod:     "GovPay",
-								Amount:            expectedFilingHistoryDocumentCostAmount,
-								CompanyNumber:     "00006400",
-								TransactionType:   "Immediate bill",
-								OrderReference:    "Payments reconciliation testing payment session ref",
-								Status:            "accepted",
-								UserID:            "system",
-								OriginalReference: "",
-								DisputeDetails:    "",
-							}
-
 							Convey("Which is also committed to the DB successfully", func() {
 
-								mockDao.EXPECT().
-									CreatePaymentTransactionsResource(&expectedTransaction).
-									DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-										log.Info("CreatePaymentTransactionsResource() invocation")
-										wg.Done()
-										return nil
-									}).
-									Times(expectedNumberOfFilingHistoryDocumentCosts)
+								expectTransactionsToBeCreated(
+									wg,
+									mockDao,
+									expectedTransactionDate,
+									paymentResponse.Costs)
 
 								log.Info("Starting service under test")
 								go svc.Start(wg, c)
@@ -518,6 +497,68 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 			})
 		})
 	})
+}
+
+func expectTransactionsToBeCreated(wg *sync.WaitGroup,
+	mockDao *dao.MockDAO,
+	expectedTransactionDate time.Time,
+	expectedCosts []data.Cost) {
+	mockDao.EXPECT().
+		CreatePaymentTransactionsResource(
+			expectedTransaction(expectedTransactionDate, expectedCosts[0].Amount)).
+		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+			log.Info("CreatePaymentTransactionsResource() invocation 0")
+			wg.Done()
+			return nil
+		}).
+		Times(1)
+
+	mockDao.EXPECT().
+		CreatePaymentTransactionsResource(
+			expectedTransaction(expectedTransactionDate, expectedCosts[1].Amount)).
+		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+			log.Info("CreatePaymentTransactionsResource() invocation 1")
+			wg.Done()
+			return nil
+		}).
+		Times(1)
+
+	mockDao.EXPECT().
+		CreatePaymentTransactionsResource(
+			expectedTransaction(expectedTransactionDate, expectedCosts[2].Amount)).
+		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+			log.Info("CreatePaymentTransactionsResource() invocation 2")
+			wg.Done()
+			return nil
+		}).
+		Times(1)
+
+	mockDao.EXPECT().
+		CreatePaymentTransactionsResource(
+			expectedTransaction(expectedTransactionDate, expectedCosts[3].Amount)).
+		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+			log.Info("CreatePaymentTransactionsResource() invocation 3")
+			wg.Done()
+			return nil
+		}).
+		Times(1)
+}
+
+func expectedTransaction(expectedTransactionDate time.Time, expectedCost string) *models.PaymentTransactionsResourceDao {
+	return &models.PaymentTransactionsResourceDao{
+		TransactionID:     "XpaymentResourceID",
+		TransactionDate:   expectedTransactionDate,
+		Email:             "demo@ch.gov.uk",
+		PaymentMethod:     "GovPay",
+		Amount:            expectedCost,
+		CompanyNumber:     "00006400",
+		TransactionType:   "Immediate bill",
+		OrderReference:    "Payments reconciliation testing payment session ref GCI-1312",
+		Status:            "accepted",
+		UserID:            "system",
+		OriginalReference: "",
+		DisputeDetails:    "",
+	}
 }
 
 // waitTimeout waits for the waitgroup for the specified max timeout.
