@@ -6,11 +6,10 @@ import (
 	"net/url"
 )
 
-// TODO GCI-1032 Would a better response, eg with differing costs, be useful?
 const CertifiedCopiesOrderGetPaymentSessionResponse = `{
-    "amount": "200.00",
-    "completed_at": "2020-07-27T09:07:12.864Z",
-    "created_at": "2020-07-27T08:55:06.978Z",
+    "amount": "250.00",
+    "completed_at": "2020-08-04T07:37:56.432Z",
+    "created_at": "2020-08-04T07:34:34.821Z",
     "created_by": {
         "email": "demo@ch.gov.uk",
         "forename": "",
@@ -19,17 +18,17 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
     },
     "description": "",
     "links": {
-        "journey": "https://payments.cidev.aws.chdev.org/payments/FIyWA4nsgUMyDak/pay",
-        "resource": "https://api.cidev.aws.chdev.org/basket/checkouts/ORD-845315-958394/payment",
-        "self": "payments/FIyWA4nsgUMyDak"
+        "journey": "https://payments.cidev.aws.chdev.org/payments/eXsiQna15i1tfpE/pay",
+        "resource": "https://api.cidev.aws.chdev.org/basket/checkouts/ORD-366015-965264/payment",
+        "self": "payments/eXsiQna15i1tfpE"
     },
     "payment_method": "GovPay",
-    "reference": "Payments reconciliation testing payment session ref",
+    "reference": "Payments reconciliation testing payment session ref GCI-1312",
     "company_number": "00006400",
     "status": "paid",
     "costs": [
         {
-            "amount": "50.00",
+            "amount": "100",
             "available_payment_methods": [
                 "credit-card"
             ],
@@ -45,7 +44,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
             }
         },
         {
-            "amount": "50.00",
+            "amount": "50",
             "available_payment_methods": [
                 "credit-card"
             ],
@@ -61,7 +60,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
             }
         },
         {
-            "amount": "50.00",
+            "amount": "50",
             "available_payment_methods": [
                 "credit-card"
             ],
@@ -77,7 +76,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
             }
         },
         {
-            "amount": "50.00",
+            "amount": "50",
             "available_payment_methods": [
                 "credit-card"
             ],
@@ -93,7 +92,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
             }
         }
     ],
-    "etag": "a7b4eff1d3025251a659225dfbe06827a6a259324af14699f2f7884e",
+    "etag": "b8a97d0bd63b590b7f1c90eb22778f55eea627027656145a678ae4e1",
     "kind": "payment-session#payment-session"
 }`
 
