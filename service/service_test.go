@@ -449,27 +449,21 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 					Return(paymentDetailsResponse, 200, nil).
 					Times(1)
 
-				Convey("Then an Eshu (product) resource is constructed", func() {
+				Convey("Then Eshu (product) resources are constructed", func() {
 
 					expectedTransactionDate, _ := time.Parse(time.RFC3339Nano, paymentDetailsResponse.TransactionDate)
-					expectedProduct := models.EshuResourceDao{
-						PaymentRef:      "XpaymentResourceID",
-						ProductCode:     27000,
-						CompanyNumber:   "00006400",
-						FilingDate:      "",
-						MadeUpdate:      "",
-						TransactionDate: expectedTransactionDate,
-					}
 
 					Convey("And committed to the DB successfully", func() {
 
-						mockDao.EXPECT().
-							CreateEshuResource(&expectedProduct).Return(nil).
-							Times(expectedNumberOfFilingHistoryDocumentCosts)
+						expectProductsToBeCreated(
+							mockDao,
+							expectedTransactionDate,
+							paymentResponse.Costs,
+							expectedNumberOfFilingHistoryDocumentCosts)
 
-						Convey("And a payment transactions resource is constructed", func() {
+						Convey("And payment transaction resources are constructed", func() {
 
-							Convey("Which is also committed to the DB successfully", func() {
+							Convey("Which are also committed to the DB successfully", func() {
 
 								expectTransactionsToBeCreated(
 									wg,
@@ -499,10 +493,51 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 	})
 }
 
+func expectProductsToBeCreated(
+	mockDao *dao.MockDAO,
+	expectedTransactionDate time.Time,
+	expectedCosts []data.Cost,
+	expectedNumberOfFilingHistoryDocumentCosts int) {
+	mockDao.EXPECT().
+		CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[0]))).
+		Return(nil).
+		Times(1)
+
+	mockDao.EXPECT().
+		CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[1]))).
+		Return(nil).
+		Times(expectedNumberOfFilingHistoryDocumentCosts - 1)
+
+}
+
+func expectedProduct(expectedTransactionDate time.Time, expectedProductCode int) *models.EshuResourceDao {
+	return &models.EshuResourceDao{
+		PaymentRef:      "XpaymentResourceID",
+		ProductCode:     expectedProductCode,
+		CompanyNumber:   "00006400",
+		FilingDate:      "",
+		MadeUpdate:      "",
+		TransactionDate: expectedTransactionDate,
+	}
+}
+
+func expectedProductCode(cost data.Cost) int {
+	expectedProductCode := 27000
+	// TODO GCI-1312 The expected product code must be inferred from the product type, not the cost.
+	//if (cost.ProductType == "certified-copy-incorporation-same-day") {
+	//	expectedProductCode = 27010
+	//}
+	if cost.Amount == "100" {
+		expectedProductCode = 27010
+	}
+	return expectedProductCode
+}
+
 func expectTransactionsToBeCreated(wg *sync.WaitGroup,
 	mockDao *dao.MockDAO,
 	expectedTransactionDate time.Time,
 	expectedCosts []data.Cost) {
+
 	mockDao.EXPECT().
 		CreatePaymentTransactionsResource(
 			expectedTransaction(expectedTransactionDate, expectedCosts[0].Amount)).
