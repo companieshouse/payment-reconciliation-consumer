@@ -495,7 +495,7 @@ func expectProductsToBeCreated(
 	expectedCosts []data.Cost,
 	expectedNumberOfFilingHistoryDocumentCosts int) {
 	mockDao.EXPECT().
-		CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[1]))).
+		CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[0]))).
 		Return(nil).
 		Times(1)
 
