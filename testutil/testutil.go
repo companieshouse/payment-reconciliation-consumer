@@ -6,6 +6,7 @@ import (
 	"net/url"
 )
 
+// TODO GCI-1312 replace with response captured on apollo1/cidev once GCI-1321-3 deployed there.
 const CertifiedCopiesOrderGetPaymentSessionResponse = `{
     "amount": "250.00",
     "completed_at": "2020-08-04T07:37:56.432Z",
@@ -37,7 +38,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
             ],
             "description": "certified copy for company 00006400",
             "description_identifier": "certified-copy",
-            "product_type": "certified-copy-same-day",
+            "product_type": "certified-copy-incorporation-same-day",
             "description_values": {
                 "certified-copy": "certified copy for company 00006400",
                 "company_number": "00006400"

@@ -519,11 +519,7 @@ func expectedProduct(expectedTransactionDate time.Time, expectedProductCode int)
 
 func expectedProductCode(cost data.Cost) int {
 	expectedProductCode := 27000
-	// TODO GCI-1312 The expected product code must be inferred from the product type, not the cost.
-	//if (cost.ProductType == "certified-copy-incorporation-same-day") {
-	//	expectedProductCode = 27010
-	//}
-	if cost.Amount == "100" {
+	if cost.ProductType == "certified-copy-incorporation-same-day" {
 		expectedProductCode = 27010
 	}
 	return expectedProductCode
