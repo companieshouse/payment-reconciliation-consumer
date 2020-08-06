@@ -29,8 +29,6 @@ import (
 const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
-const waitTimeoutSeconds = 1
-const timeout = waitTimeoutSeconds * time.Second
 
 func createMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, mockTransformer *transformer.MockTransformer, mockDao *dao.MockDAO) *Service {
 
@@ -412,10 +410,9 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 		CreateMockClient(true, 200, testutil.CertifiedCopiesOrderGetPaymentSessionResponse)
 	paymentResponse, status, _ := paymentsAPI.GetPayment("http://test-url.com", mockHttpClient, "")
 	expectedNumberOfFilingHistoryDocumentCosts := len(paymentResponse.Costs)
-	waitOnExpectedTransactionCreationsAndServiceShutdown := expectedNumberOfFilingHistoryDocumentCosts + 1
 
 	wg := &sync.WaitGroup{}
-	wg.Add(waitOnExpectedTransactionCreationsAndServiceShutdown)
+	wg.Add(1)
 	c := make(chan os.Signal)
 
 	mockPayment := payment.NewMockFetcher(ctrl)
@@ -464,7 +461,6 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 							Convey("Which are also committed to the DB successfully", func() {
 
 								expectTransactionsToBeCreated(
-									wg,
 									mockDao,
 									expectedTransactionDate,
 									paymentResponse.Costs,
@@ -472,15 +468,8 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 									svc)
 
 								log.Info("Starting service under test")
-								go svc.Start(wg, c)
-								log.Info("Waiting for all expected actions to complete")
-								if waitTimeout(wg, timeout) {
-									log.Error(
-										fmt.Errorf("Timed out waiting %d seconds for expected actions",
-											waitTimeoutSeconds))
-								} else {
-									log.Info("Finished waiting for all expected actions")
-								}
+								svc.Start(wg, c)
+								log.Info("Completing test")
 							})
 						})
 					})
@@ -526,7 +515,7 @@ func expectedProductCode(cost data.Cost) int {
 	return expectedProductCode
 }
 
-func expectTransactionsToBeCreated(wg *sync.WaitGroup,
+func expectTransactionsToBeCreated(
 	mockDao *dao.MockDAO,
 	expectedTransactionDate time.Time,
 	expectedCosts []data.Cost,
@@ -538,7 +527,6 @@ func expectTransactionsToBeCreated(wg *sync.WaitGroup,
 			expectedTransaction(expectedTransactionDate, expectedCosts[0].Amount)).
 		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 			log.Info("CreatePaymentTransactionsResource() invocation 0")
-			wg.Done()
 			return nil
 		}).
 		Times(1)
@@ -548,7 +536,6 @@ func expectTransactionsToBeCreated(wg *sync.WaitGroup,
 			expectedTransaction(expectedTransactionDate, expectedCosts[1].Amount)).
 		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 			log.Info("CreatePaymentTransactionsResource() invocation 1")
-			wg.Done()
 			return nil
 		}).
 		Times(1)
@@ -558,7 +545,6 @@ func expectTransactionsToBeCreated(wg *sync.WaitGroup,
 			expectedTransaction(expectedTransactionDate, expectedCosts[2].Amount)).
 		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 			log.Info("CreatePaymentTransactionsResource() invocation 2")
-			wg.Done()
 			return nil
 		}).
 		Times(1)
@@ -568,9 +554,8 @@ func expectTransactionsToBeCreated(wg *sync.WaitGroup,
 			expectedTransaction(expectedTransactionDate, expectedCosts[3].Amount)).
 		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 			log.Info("CreatePaymentTransactionsResource() final invocation (3) - closing consumer")
-			wg.Done()
 			// Since this is the last thing the service does, we send a signal to kill
-			// the consumer process gracefully
+			// the consumer process gracefully.
 			endConsumerProcess(svc, c)
 			return nil
 		}).
@@ -591,22 +576,5 @@ func expectedTransaction(expectedTransactionDate time.Time, expectedCost string)
 		UserID:            "system",
 		OriginalReference: "",
 		DisputeDetails:    "",
-	}
-}
-
-// waitTimeout waits for the waitgroup for the specified max timeout.
-// Returns true if waiting timed out.
-// See https://stackoverflow.com/questions/32840687/timeout-for-waitgroup-wait.
-func waitTimeout(wg *sync.WaitGroup, timeout time.Duration) bool {
-	c := make(chan struct{})
-	go func() {
-		defer close(c)
-		wg.Wait()
-	}()
-	select {
-	case <-c:
-		return false // completed normally
-	case <-time.After(timeout):
-		return true // timed out
 	}
 }
