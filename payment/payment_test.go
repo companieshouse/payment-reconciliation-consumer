@@ -85,9 +85,10 @@ func TestUnitGetPayment(t *testing.T) {
 		So(statusCode, ShouldEqual, 200)
 		So(b, ShouldNotBeEmpty)
 		So(len(b.Costs), ShouldEqual, 4)
-		for _, cost := range b.Costs {
-			So(cost.Amount, ShouldEqual, `50.00`)
-		}
+		So(b.Costs[0].Amount, ShouldEqual, `100`)
+		So(b.Costs[1].Amount, ShouldEqual, `50`)
+		So(b.Costs[2].Amount, ShouldEqual, `50`)
+		So(b.Costs[3].Amount, ShouldEqual, `50`)
 	})
 }
 
