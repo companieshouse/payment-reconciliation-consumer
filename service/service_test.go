@@ -412,9 +412,10 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 		CreateMockClient(true, 200, testutil.CertifiedCopiesOrderGetPaymentSessionResponse)
 	paymentResponse, status, _ := paymentsAPI.GetPayment("http://test-url.com", mockHttpClient, "")
 	expectedNumberOfFilingHistoryDocumentCosts := len(paymentResponse.Costs)
+	waitOnExpectedTransactionCreationsAndServiceShutdown := expectedNumberOfFilingHistoryDocumentCosts + 1
 
 	wg := &sync.WaitGroup{}
-	wg.Add(expectedNumberOfFilingHistoryDocumentCosts)
+	wg.Add(waitOnExpectedTransactionCreationsAndServiceShutdown)
 	c := make(chan os.Signal)
 
 	mockPayment := payment.NewMockFetcher(ctrl)
