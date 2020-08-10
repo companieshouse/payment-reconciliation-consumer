@@ -66,7 +66,6 @@ func (t *Transform) GetTransactionResources(payment data.PaymentResponse,
 		return paymentTransactionsResources, err
 	}
 
-	// TODO GCI-1032 So how is Finance reconciliation going to tally eshus (products) with transactions?
 	for _, cost := range payment.Costs {
 		paymentTransactionsResources = append(paymentTransactionsResources, models.PaymentTransactionsResourceDao{
 			TransactionID:     "X" + paymentId,
