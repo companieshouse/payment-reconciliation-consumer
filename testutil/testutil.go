@@ -6,11 +6,10 @@ import (
 	"net/url"
 )
 
-// TODO GCI-1312 replace with response captured on apollo1/cidev once GCI-1321-3 deployed there.
 const CertifiedCopiesOrderGetPaymentSessionResponse = `{
     "amount": "250.00",
-    "completed_at": "2020-08-04T07:37:56.432Z",
-    "created_at": "2020-08-04T07:34:34.821Z",
+    "completed_at": "2020-08-10T07:30:50.495Z",
+    "created_at": "2020-08-10T07:28:51.104Z",
     "created_by": {
         "email": "demo@ch.gov.uk",
         "forename": "",
@@ -19,9 +18,9 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
     },
     "description": "",
     "links": {
-        "journey": "https://payments.cidev.aws.chdev.org/payments/eXsiQna15i1tfpE/pay",
-        "resource": "https://api.cidev.aws.chdev.org/basket/checkouts/ORD-366015-965264/payment",
-        "self": "payments/eXsiQna15i1tfpE"
+        "journey": "https://payments.cidev.aws.chdev.org/payments/TqCvKQQSre69nga/pay",
+        "resource": "https://api.cidev.aws.chdev.org/basket/checkouts/ORD-971115-970443/payment",
+        "self": "payments/TqCvKQQSre69nga"
     },
     "payment_method": "GovPay",
     "reference": "Payments reconciliation testing payment session ref GCI-1312",
@@ -93,7 +92,7 @@ const CertifiedCopiesOrderGetPaymentSessionResponse = `{
             }
         }
     ],
-    "etag": "b8a97d0bd63b590b7f1c90eb22778f55eea627027656145a678ae4e1",
+    "etag": "15a5ca8f1381b461ad94cd8bee0a165446d54e34faf5ecafc2e27703",
     "kind": "payment-session#payment-session"
 }`
 
