@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/companieshouse/chs.go/kafka/consumer/cluster"
@@ -30,6 +31,10 @@ const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
 
+var (
+	handleErrorCalled bool = false
+)
+
 func createMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, mockTransformer *transformer.MockTransformer, mockDao *dao.MockDAO) *Service {
 
 	return &Service{
@@ -44,6 +49,10 @@ func createMockService(productMap *config.ProductMap, mockPayment *payment.MockF
 		Client:         &http.Client{},
 		StopAtOffset:   int64(-1),
 		Topic:          "test",
+		HandleError: func(err error, offset int64, str interface{}) error {
+			handleErrorCalled = true
+			return err
+		},
 	}
 }
 
@@ -308,6 +317,51 @@ func TestUnitCertifiedCopies(t *testing.T) {
 	Convey("Successful process of a single Kafka message for a certified copies 'orderable-item' payment with multiple costs", t, func() {
 		processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap)
 	})
+
+	Convey("HandleError invoked to handle errors", t, func() {
+
+		Convey("HandleError invoked to handle error creating eshus", func() {
+
+			// Given
+			handleErrorCalled = false
+			mockPayment := payment.NewMockFetcher(ctrl)
+			mockTransformer := transformer.NewMockTransformer(ctrl)
+			mockDao := dao.NewMockDAO(ctrl)
+
+			svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+			message := sarama.ConsumerMessage{Offset: 1}
+			paymentResponse := data.PaymentResponse{}
+			details := data.PaymentDetailsResponse{}
+			paymentId := "paymentResponse ID"
+			mockError := errors.New("test-simulated mockError")
+
+			mockTransformer.EXPECT().
+				GetEshuResource(paymentResponse, details, paymentId).
+				Return(nil, mockError).
+				Times(1)
+
+			// When
+			svc.getEshuResources(&message, paymentResponse, details, paymentId)
+
+			// Then
+			So(handleErrorCalled, ShouldEqual, true)
+
+		})
+
+		//Convey("Error saving eshus handled resiliently", func() {
+		//	// TODO
+		//})
+		//
+		//Convey("Error creating transactions handled resiliently", func() {
+		//	// TODO
+		//})
+		//
+		//Convey("Error saving transactions handled resiliently", func() {
+		//	// TODO
+		//})
+	})
+
 }
 
 // endConsumerProcess facilitates service termination

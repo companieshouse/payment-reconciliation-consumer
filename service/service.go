@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"github.com/companieshouse/payment-reconciliation-consumer/dao"
+	"github.com/companieshouse/payment-reconciliation-consumer/models"
 	"github.com/companieshouse/payment-reconciliation-consumer/transformer"
 	"net/http"
 	"os"
@@ -230,12 +231,8 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							// We need to remove sensitive data fields for secure applications.
 							svc.MaskSensitiveFields(&paymentResponse)
 
-							//Get Eshu resources
-							eshus, err := svc.Transformer.GetEshuResources(paymentResponse, paymentDetails, pp.ResourceURI)
-							if err != nil {
-								log.Error(err, log.Data{"message_offset": message.Offset})
-								svc.HandleError(err, message.Offset, &paymentDetails)
-							}
+							// Get Eshu resources
+							eshus := svc.getEshuResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
 
 							//Add Eshu objects to the Database
 							for _, eshu := range eshus {
@@ -330,4 +327,19 @@ func (svc *Service) Shutdown(topic string) {
 		log.Error(fmt.Errorf("error closing consumer: %s", err))
 	}
 	log.Info("Consumer successfully closed", log.Data{"topic": svc.Topic})
+}
+
+// Gets eshu resources
+func (svc *Service) getEshuResources(
+	message *sarama.ConsumerMessage,
+	payment data.PaymentResponse,
+	paymentDetails data.PaymentDetailsResponse,
+	paymentId string) []models.EshuResourceDao {
+
+	eshus, err := svc.Transformer.GetEshuResources(payment, paymentDetails, paymentId)
+	if err != nil {
+		log.Error(err, log.Data{"message_offset": message.Offset})
+		_ = svc.HandleError(err, message.Offset, &paymentDetails)
+	}
+	return eshus
 }
