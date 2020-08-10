@@ -625,72 +625,46 @@ func expectTransactionsToBeCreated(
 	c chan os.Signal,
 	svc *Service) {
 
-	numberofCosts := len(expectedCosts)
+	numberOfCosts := len(expectedCosts)
 
 	mockDao.EXPECT().
 		CreatePaymentTransactionsResource(
 			expectedTransaction(expectedTransactionDate, expectedCosts[0].Amount)).
 		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-			log.Info("CreatePaymentTransactionsResource() invocation 0")
-			if numberofCosts == 1 {
-				// Since this is the last thing the service does, we send a signal to kill
-				// the consumer process gracefully.
-				log.Info("Closing consumer 0")
-				endConsumerProcess(svc, c)
-			}
-			return nil
+			return endConsumerProcessIfLastTransactionCreated(numberOfCosts, 0, svc, c)
 		}).
 		Times(1)
 
-	if numberofCosts > 1 {
+	if numberOfCosts > 1 {
 		mockDao.EXPECT().
 			CreatePaymentTransactionsResource(
 				expectedTransaction(expectedTransactionDate, expectedCosts[1].Amount)).
 			DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-				log.Info("CreatePaymentTransactionsResource() invocation 1")
-				if numberofCosts == 2 {
-					// Since this is the last thing the service does, we send a signal to kill
-					// the consumer process gracefully.
-					log.Info("Closing consumer 1")
-					endConsumerProcess(svc, c)
-				}
-				return nil
+				return endConsumerProcessIfLastTransactionCreated(numberOfCosts, 1, svc, c)
 			}).
 			Times(1)
 	} else {
 		return
 	}
 
-	if numberofCosts > 2 {
+	if numberOfCosts > 2 {
 		mockDao.EXPECT().
 			CreatePaymentTransactionsResource(
 				expectedTransaction(expectedTransactionDate, expectedCosts[2].Amount)).
 			DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-				log.Info("CreatePaymentTransactionsResource() invocation 2")
-				if numberofCosts == 3 {
-					// Since this is the last thing the service does, we send a signal to kill
-					// the consumer process gracefully.
-					log.Info("Closing consumer 2")
-					endConsumerProcess(svc, c)
-				}
-				return nil
+				return endConsumerProcessIfLastTransactionCreated(numberOfCosts, 2, svc, c)
 			}).
 			Times(1)
 	} else {
 		return
 	}
 
-	if numberofCosts > 3 {
+	if numberOfCosts > 3 {
 		mockDao.EXPECT().
 			CreatePaymentTransactionsResource(
 				expectedTransaction(expectedTransactionDate, expectedCosts[3].Amount)).
 			DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-				log.Info("CreatePaymentTransactionsResource() invocation 3")
-				// Since this is the last thing the service does, we send a signal to kill
-				// the consumer process gracefully.
-				log.Info("Closing consumer 3")
-				endConsumerProcess(svc, c)
-				return nil
+				return endConsumerProcessIfLastTransactionCreated(numberOfCosts, 3, svc, c)
 			}).
 			Times(1)
 	} else {
@@ -713,4 +687,17 @@ func expectedTransaction(expectedTransactionDate time.Time, expectedCost string)
 		OriginalReference: "",
 		DisputeDetails:    "",
 	}
+}
+
+// Ends the consumer process if the transaction for the last cost has been created.
+// Returns nil error for test code legibility.
+func endConsumerProcessIfLastTransactionCreated(numberOfCosts int, costIndex int, svc *Service, c chan os.Signal) error {
+	log.Info(fmt.Sprintf("CreatePaymentTransactionsResource() invocation %d", costIndex+1))
+	if costIndex == numberOfCosts-1 {
+		// Since this is the last thing the service does, we send a signal to kill
+		// the consumer process gracefully.
+		log.Info(fmt.Sprintf("Closing consumer after invocation %d", costIndex+1))
+		endConsumerProcess(svc, c)
+	}
+	return nil
 }
