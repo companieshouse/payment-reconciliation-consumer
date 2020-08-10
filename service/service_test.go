@@ -334,7 +334,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			paymentResponse := data.PaymentResponse{}
 			details := data.PaymentDetailsResponse{}
 			paymentId := "paymentResponse ID"
-			mockError := errors.New("test-simulated mockError")
+			mockError := errors.New("test-simulated mock error")
 
 			mockTransformer.EXPECT().
 				GetEshuResource(paymentResponse, details, paymentId).
@@ -349,10 +349,28 @@ func TestUnitCertifiedCopies(t *testing.T) {
 
 		})
 
-		//Convey("Error saving eshus handled resiliently", func() {
-		//	// TODO
-		//})
-		//
+		Convey("HandleError invoked to handle error saving eshus", func() {
+			// Given
+			handleErrorCalled = false
+			mockPayment := payment.NewMockFetcher(ctrl)
+			mockTransformer := transformer.NewMockTransformer(ctrl)
+			mockDao := dao.NewMockDAO(ctrl)
+
+			svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+			message := sarama.ConsumerMessage{Offset: 1}
+			mockError := errors.New("test-simulated mockError")
+			eshus := []models.EshuResourceDao{{}}
+
+			mockDao.EXPECT().CreateEshuResource(&eshus[0]).Return(mockError).Times(1)
+
+			// When
+			svc.saveEshuResources(&message, eshus)
+
+			// Then
+			So(handleErrorCalled, ShouldEqual, true)
+		})
+
 		//Convey("Error creating transactions handled resiliently", func() {
 		//	// TODO
 		//})

@@ -235,14 +235,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							eshus := svc.getEshuResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
 
 							//Add Eshu objects to the Database
-							for _, eshu := range eshus {
-								err = svc.DAO.CreateEshuResource(&eshu)
-								if err != nil {
-									log.Error(err, log.Data{"message": "failed to create eshu request in database",
-										"data": eshu})
-									svc.HandleError(err, message.Offset, &eshus)
-								}
-							}
+							svc.saveEshuResources(message, eshus)
 
 							//Build Payment Transaction database objects
 							txns, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetails, pp.ResourceURI)
@@ -329,7 +322,7 @@ func (svc *Service) Shutdown(topic string) {
 	log.Info("Consumer successfully closed", log.Data{"topic": svc.Topic})
 }
 
-// Gets eshu resources
+// Creates Eshu resources
 func (svc *Service) getEshuResources(
 	message *sarama.ConsumerMessage,
 	payment data.PaymentResponse,
@@ -342,4 +335,16 @@ func (svc *Service) getEshuResources(
 		_ = svc.HandleError(err, message.Offset, &paymentDetails)
 	}
 	return eshus
+}
+
+// Saves Eshu resources to the Database
+func (svc *Service) saveEshuResources(message *sarama.ConsumerMessage, eshus []models.EshuResourceDao) {
+	for _, eshu := range eshus {
+		err := svc.DAO.CreateEshuResource(&eshu)
+		if err != nil {
+			log.Error(err, log.Data{"message": "failed to create eshu request in database",
+				"data": eshu})
+			svc.HandleError(err, message.Offset, &eshus)
+		}
+	}
 }
