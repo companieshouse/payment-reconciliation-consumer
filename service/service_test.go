@@ -314,9 +314,20 @@ func TestUnitCertifiedCopies(t *testing.T) {
 		log.Error(fmt.Errorf("error initialising productMap: %s", err), nil)
 	}
 
-	Convey("Successful process of a single Kafka message for a certified copies 'orderable-item' payment with multiple costs",
+	Convey("Successful process of a single message for a certified copies 'orderable-item' payment with multiple costs",
 		t, func() {
-			processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap)
+			processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
+				ctrl,
+				productMap,
+				testutil.CertifiedCopiesOrderGetPaymentSessionResponse)
+		})
+
+	Convey("Successful process of a single message for a certified copies 'orderable-item' payment with a single cost",
+		t, func() {
+			processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
+				ctrl,
+				productMap,
+				testutil.CertifiedCopiesSingleCostOrderGetPaymentSessionResponse)
 		})
 
 	Convey("HandleError invoked to handle errors", t, func() {
@@ -491,11 +502,12 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 // reconciliation records capturing all of the costs involved.
 func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 	ctrl *gomock.Controller,
-	productMap *config.ProductMap) {
+	productMap *config.ProductMap,
+	responseBody string) {
 
 	paymentsAPI := payment.Fetch{}
 	mockHttpClient := testutil.
-		CreateMockClient(true, 200, testutil.CertifiedCopiesOrderGetPaymentSessionResponse)
+		CreateMockClient(true, 200, responseBody)
 	paymentResponse, status, _ := paymentsAPI.GetPayment("http://test-url.com", mockHttpClient, "")
 	expectedNumberOfFilingHistoryDocumentCosts := len(paymentResponse.Costs)
 
@@ -572,15 +584,18 @@ func expectProductsToBeCreated(
 	expectedTransactionDate time.Time,
 	expectedCosts []data.Cost,
 	expectedNumberOfFilingHistoryDocumentCosts int) {
+
 	mockDao.EXPECT().
 		CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[0]))).
 		Return(nil).
 		Times(1)
 
-	mockDao.EXPECT().
-		CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[1]))).
-		Return(nil).
-		Times(expectedNumberOfFilingHistoryDocumentCosts - 1)
+	if len(expectedCosts) > 1 {
+		mockDao.EXPECT().
+			CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[1]))).
+			Return(nil).
+			Times(expectedNumberOfFilingHistoryDocumentCosts - 1)
+	}
 
 }
 
@@ -610,44 +625,77 @@ func expectTransactionsToBeCreated(
 	c chan os.Signal,
 	svc *Service) {
 
+	numberofCosts := len(expectedCosts)
+
 	mockDao.EXPECT().
 		CreatePaymentTransactionsResource(
 			expectedTransaction(expectedTransactionDate, expectedCosts[0].Amount)).
 		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 			log.Info("CreatePaymentTransactionsResource() invocation 0")
+			if numberofCosts == 1 {
+				// Since this is the last thing the service does, we send a signal to kill
+				// the consumer process gracefully.
+				log.Info("Closing consumer 0")
+				endConsumerProcess(svc, c)
+			}
 			return nil
 		}).
 		Times(1)
 
-	mockDao.EXPECT().
-		CreatePaymentTransactionsResource(
-			expectedTransaction(expectedTransactionDate, expectedCosts[1].Amount)).
-		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-			log.Info("CreatePaymentTransactionsResource() invocation 1")
-			return nil
-		}).
-		Times(1)
+	if numberofCosts > 1 {
+		mockDao.EXPECT().
+			CreatePaymentTransactionsResource(
+				expectedTransaction(expectedTransactionDate, expectedCosts[1].Amount)).
+			DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+				log.Info("CreatePaymentTransactionsResource() invocation 1")
+				if numberofCosts == 2 {
+					// Since this is the last thing the service does, we send a signal to kill
+					// the consumer process gracefully.
+					log.Info("Closing consumer 1")
+					endConsumerProcess(svc, c)
+				}
+				return nil
+			}).
+			Times(1)
+	} else {
+		return
+	}
 
-	mockDao.EXPECT().
-		CreatePaymentTransactionsResource(
-			expectedTransaction(expectedTransactionDate, expectedCosts[2].Amount)).
-		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-			log.Info("CreatePaymentTransactionsResource() invocation 2")
-			return nil
-		}).
-		Times(1)
+	if numberofCosts > 2 {
+		mockDao.EXPECT().
+			CreatePaymentTransactionsResource(
+				expectedTransaction(expectedTransactionDate, expectedCosts[2].Amount)).
+			DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+				log.Info("CreatePaymentTransactionsResource() invocation 2")
+				if numberofCosts == 3 {
+					// Since this is the last thing the service does, we send a signal to kill
+					// the consumer process gracefully.
+					log.Info("Closing consumer 2")
+					endConsumerProcess(svc, c)
+				}
+				return nil
+			}).
+			Times(1)
+	} else {
+		return
+	}
 
-	mockDao.EXPECT().
-		CreatePaymentTransactionsResource(
-			expectedTransaction(expectedTransactionDate, expectedCosts[3].Amount)).
-		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
-			log.Info("CreatePaymentTransactionsResource() final invocation (3) - closing consumer")
-			// Since this is the last thing the service does, we send a signal to kill
-			// the consumer process gracefully.
-			endConsumerProcess(svc, c)
-			return nil
-		}).
-		Times(1)
+	if numberofCosts > 3 {
+		mockDao.EXPECT().
+			CreatePaymentTransactionsResource(
+				expectedTransaction(expectedTransactionDate, expectedCosts[3].Amount)).
+			DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+				log.Info("CreatePaymentTransactionsResource() invocation 3")
+				// Since this is the last thing the service does, we send a signal to kill
+				// the consumer process gracefully.
+				log.Info("Closing consumer 3")
+				endConsumerProcess(svc, c)
+				return nil
+			}).
+			Times(1)
+	} else {
+		return
+	}
 }
 
 func expectedTransaction(expectedTransactionDate time.Time, expectedCost string) *models.PaymentTransactionsResourceDao {
