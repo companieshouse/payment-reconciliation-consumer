@@ -321,22 +321,22 @@ func TestUnitCertifiedCopies(t *testing.T) {
 
 	Convey("HandleError invoked to handle errors", t, func() {
 
+		mockPayment := payment.NewMockFetcher(ctrl)
+		mockTransformer := transformer.NewMockTransformer(ctrl)
+		mockDao := dao.NewMockDAO(ctrl)
+
+		svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+		message := sarama.ConsumerMessage{Offset: 1}
+		paymentResponse := data.PaymentResponse{}
+		details := data.PaymentDetailsResponse{}
+		paymentId := "paymentResponse ID"
+		mockError := errors.New("test-simulated mock error")
+
 		Convey("HandleError invoked to handle error creating eshus", func() {
 
 			// Given
 			handleErrorCalled = false
-			mockPayment := payment.NewMockFetcher(ctrl)
-			mockTransformer := transformer.NewMockTransformer(ctrl)
-			mockDao := dao.NewMockDAO(ctrl)
-
-			svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
-
-			message := sarama.ConsumerMessage{Offset: 1}
-			paymentResponse := data.PaymentResponse{}
-			details := data.PaymentDetailsResponse{}
-			paymentId := "paymentResponse ID"
-			mockError := errors.New("test-simulated mock error")
-
 			mockTransformer.EXPECT().
 				GetEshuResource(paymentResponse, details, paymentId).
 				Return(nil, mockError).
@@ -354,16 +354,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 
 			// Given
 			handleErrorCalled = false
-			mockPayment := payment.NewMockFetcher(ctrl)
-			mockTransformer := transformer.NewMockTransformer(ctrl)
-			mockDao := dao.NewMockDAO(ctrl)
-
-			svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
-
-			message := sarama.ConsumerMessage{Offset: 1}
-			mockError := errors.New("test-simulated mock error")
 			eshus := []models.EshuResourceDao{{}}
-
 			mockDao.EXPECT().CreateEshuResource(&eshus[0]).Return(mockError).Times(1)
 
 			// When
@@ -377,18 +368,6 @@ func TestUnitCertifiedCopies(t *testing.T) {
 
 			// Given
 			handleErrorCalled = false
-			mockPayment := payment.NewMockFetcher(ctrl)
-			mockTransformer := transformer.NewMockTransformer(ctrl)
-			mockDao := dao.NewMockDAO(ctrl)
-
-			svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
-
-			message := sarama.ConsumerMessage{Offset: 1}
-			paymentResponse := data.PaymentResponse{}
-			details := data.PaymentDetailsResponse{}
-			paymentId := "paymentResponse ID"
-			mockError := errors.New("test-simulated mock error")
-
 			mockTransformer.EXPECT().
 				GetTransactionResource(paymentResponse, details, paymentId).
 				Return(nil, mockError).
@@ -406,16 +385,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 
 			// Given
 			handleErrorCalled = false
-			mockPayment := payment.NewMockFetcher(ctrl)
-			mockTransformer := transformer.NewMockTransformer(ctrl)
-			mockDao := dao.NewMockDAO(ctrl)
-
-			svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
-
-			message := sarama.ConsumerMessage{Offset: 1}
-			mockError := errors.New("test-simulated mock error")
 			txns := []models.PaymentTransactionsResourceDao{{}}
-
 			mockDao.EXPECT().CreatePaymentTransactionsResource(&txns[0]).Return(mockError).Times(1)
 
 			// When
