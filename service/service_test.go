@@ -314,9 +314,10 @@ func TestUnitCertifiedCopies(t *testing.T) {
 		log.Error(fmt.Errorf("error initialising productMap: %s", err), nil)
 	}
 
-	Convey("Successful process of a single Kafka message for a certified copies 'orderable-item' payment with multiple costs", t, func() {
-		processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap)
-	})
+	Convey("Successful process of a single Kafka message for a certified copies 'orderable-item' payment with multiple costs",
+		t, func() {
+			processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap)
+		})
 
 	Convey("HandleError invoked to handle errors", t, func() {
 
@@ -360,7 +361,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
 
 			message := sarama.ConsumerMessage{Offset: 1}
-			mockError := errors.New("test-simulated mockError")
+			mockError := errors.New("test-simulated mock error")
 			eshus := []models.EshuResourceDao{{}}
 
 			mockDao.EXPECT().CreateEshuResource(&eshus[0]).Return(mockError).Times(1)
@@ -401,9 +402,28 @@ func TestUnitCertifiedCopies(t *testing.T) {
 
 		})
 
-		//Convey("Error saving transactions handled resiliently", func() {
-		//	// TODO
-		//})
+		Convey("HandleError invoked to handle error saving transactions", func() {
+
+			// Given
+			handleErrorCalled = false
+			mockPayment := payment.NewMockFetcher(ctrl)
+			mockTransformer := transformer.NewMockTransformer(ctrl)
+			mockDao := dao.NewMockDAO(ctrl)
+
+			svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+			message := sarama.ConsumerMessage{Offset: 1}
+			mockError := errors.New("test-simulated mock error")
+			txns := []models.PaymentTransactionsResourceDao{{}}
+
+			mockDao.EXPECT().CreatePaymentTransactionsResource(&txns[0]).Return(mockError).Times(1)
+
+			// When
+			svc.saveTransactionResources(&message, txns)
+
+			// Then
+			So(handleErrorCalled, ShouldEqual, true)
+		})
 	})
 
 }

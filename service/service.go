@@ -241,14 +241,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							txns := svc.getTransactionResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
 
 							//Add Payment Transactions to the Database
-							for _, txn := range txns {
-								err = svc.DAO.CreatePaymentTransactionsResource(&txn)
-								if err != nil {
-									log.Error(err, log.Data{"message": "failed to create production request in database",
-										"data": txn})
-									svc.HandleError(err, message.Offset, &txns)
-								}
-							}
+							svc.saveTransactionResources(message, txns)
 
 						}
 					}
@@ -359,4 +352,19 @@ func (svc *Service) getTransactionResources(
 		svc.HandleError(err, message.Offset, &paymentDetailsResponse)
 	}
 	return txns
+}
+
+// Saves Eshu resources to the database
+func (svc *Service) saveTransactionResources(
+	message *sarama.ConsumerMessage,
+	txns []models.PaymentTransactionsResourceDao) {
+
+	for _, txn := range txns {
+		err := svc.DAO.CreatePaymentTransactionsResource(&txn)
+		if err != nil {
+			log.Error(err, log.Data{"message": "failed to create production request in database",
+				"data": txn})
+			svc.HandleError(err, message.Offset, &txns)
+		}
+	}
 }
