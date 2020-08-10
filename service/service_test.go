@@ -350,6 +350,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 		})
 
 		Convey("HandleError invoked to handle error saving eshus", func() {
+
 			// Given
 			handleErrorCalled = false
 			mockPayment := payment.NewMockFetcher(ctrl)
@@ -371,10 +372,35 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			So(handleErrorCalled, ShouldEqual, true)
 		})
 
-		//Convey("Error creating transactions handled resiliently", func() {
-		//	// TODO
-		//})
-		//
+		Convey("HandleError invoked to handle error creating transactions", func() {
+
+			// Given
+			handleErrorCalled = false
+			mockPayment := payment.NewMockFetcher(ctrl)
+			mockTransformer := transformer.NewMockTransformer(ctrl)
+			mockDao := dao.NewMockDAO(ctrl)
+
+			svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+			message := sarama.ConsumerMessage{Offset: 1}
+			paymentResponse := data.PaymentResponse{}
+			details := data.PaymentDetailsResponse{}
+			paymentId := "paymentResponse ID"
+			mockError := errors.New("test-simulated mock error")
+
+			mockTransformer.EXPECT().
+				GetTransactionResource(paymentResponse, details, paymentId).
+				Return(nil, mockError).
+				Times(1)
+
+			// When
+			svc.getTransactionResources(&message, paymentResponse, details, paymentId)
+
+			// Then
+			So(handleErrorCalled, ShouldEqual, true)
+
+		})
+
 		//Convey("Error saving transactions handled resiliently", func() {
 		//	// TODO
 		//})

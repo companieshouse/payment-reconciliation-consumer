@@ -238,11 +238,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							svc.saveEshuResources(message, eshus)
 
 							//Build Payment Transaction database objects
-							txns, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetails, pp.ResourceURI)
-							if err != nil {
-								log.Error(err, log.Data{"message_offset": message.Offset})
-								svc.HandleError(err, message.Offset, &paymentDetails)
-							}
+							txns := svc.getTransactionResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
 
 							//Add Payment Transactions to the Database
 							for _, txn := range txns {
@@ -325,20 +321,21 @@ func (svc *Service) Shutdown(topic string) {
 // Creates Eshu resources
 func (svc *Service) getEshuResources(
 	message *sarama.ConsumerMessage,
-	payment data.PaymentResponse,
-	paymentDetails data.PaymentDetailsResponse,
+	paymentResponse data.PaymentResponse,
+	paymentDetailsResponse data.PaymentDetailsResponse,
 	paymentId string) []models.EshuResourceDao {
 
-	eshus, err := svc.Transformer.GetEshuResources(payment, paymentDetails, paymentId)
+	eshus, err := svc.Transformer.GetEshuResources(paymentResponse, paymentDetailsResponse, paymentId)
 	if err != nil {
 		log.Error(err, log.Data{"message_offset": message.Offset})
-		_ = svc.HandleError(err, message.Offset, &paymentDetails)
+		_ = svc.HandleError(err, message.Offset, &paymentDetailsResponse)
 	}
 	return eshus
 }
 
 // Saves Eshu resources to the Database
 func (svc *Service) saveEshuResources(message *sarama.ConsumerMessage, eshus []models.EshuResourceDao) {
+
 	for _, eshu := range eshus {
 		err := svc.DAO.CreateEshuResource(&eshu)
 		if err != nil {
@@ -347,4 +344,19 @@ func (svc *Service) saveEshuResources(message *sarama.ConsumerMessage, eshus []m
 			svc.HandleError(err, message.Offset, &eshus)
 		}
 	}
+}
+
+// Creates Payment Transaction database objects
+func (svc *Service) getTransactionResources(
+	message *sarama.ConsumerMessage,
+	paymentResponse data.PaymentResponse,
+	paymentDetailsResponse data.PaymentDetailsResponse,
+	paymentId string) []models.PaymentTransactionsResourceDao {
+
+	txns, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetailsResponse, paymentId)
+	if err != nil {
+		log.Error(err, log.Data{"message_offset": message.Offset})
+		svc.HandleError(err, message.Offset, &paymentDetailsResponse)
+	}
+	return txns
 }
