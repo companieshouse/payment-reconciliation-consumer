@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"github.com/companieshouse/payment-reconciliation-consumer/dao"
+	"github.com/companieshouse/payment-reconciliation-consumer/keys"
 	"github.com/companieshouse/payment-reconciliation-consumer/models"
 	"github.com/companieshouse/payment-reconciliation-consumer/transformer"
 	"net/http"
@@ -22,9 +23,6 @@ import (
 	"github.com/companieshouse/payment-reconciliation-consumer/data"
 	"github.com/companieshouse/payment-reconciliation-consumer/payment"
 )
-
-const messageLogKey = "message"
-const messageOffsetLogKey = "message_offset"
 
 // Service represents service config for payment-reconciliation-consumer
 type Service struct {
@@ -166,10 +164,10 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 		if message != nil {
 			// Commit the message we've just been processing before starting the next
-			log.Trace("Committing message", log.Data{messageOffsetLogKey: message.Offset})
+			log.Trace("Committing message", log.Data{keys.Offset: message.Offset})
 			svc.Consumer.MarkOffset(message, "")
 			if err := svc.Consumer.CommitOffsets(); err != nil {
-				log.Error(err, log.Data{messageOffsetLogKey: message.Offset})
+				log.Error(err, log.Data{keys.Offset: message.Offset})
 			}
 		}
 
@@ -196,7 +194,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 					err = paymentProcessedSchema.Unmarshal(message.Value, &pp)
 					if err != nil {
-						log.Error(err, log.Data{messageOffsetLogKey: message.Offset})
+						log.Error(err, log.Data{keys.Offset: message.Offset})
 						svc.HandleError(err, message.Offset, &message.Value)
 						continue
 					}
@@ -208,7 +206,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					//Call GetPayment payment session from payments API
 					paymentResponse, statusCode, err := svc.Payments.GetPayment(getPaymentURL, svc.Client, svc.APIKey)
 					if err != nil {
-						log.Error(err, log.Data{messageOffsetLogKey: message.Offset})
+						log.Error(err, log.Data{keys.Offset: message.Offset})
 						svc.HandleError(err, message.Offset, &paymentResponse)
 					}
 					log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse, "status_code": statusCode})
@@ -223,7 +221,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						paymentDetails, statusCode, err := svc.Payments.GetPaymentDetails(getPaymentDetailsURL, svc.Client, svc.APIKey)
 
 						if err != nil {
-							log.Error(err, log.Data{messageOffsetLogKey: message.Offset})
+							log.Error(err, log.Data{keys.Offset: message.Offset})
 							svc.HandleError(err, message.Offset, &paymentDetails)
 						}
 						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
@@ -323,7 +321,7 @@ func (svc *Service) getEshuResources(
 
 	eshus, err := svc.Transformer.GetEshuResources(paymentResponse, paymentDetailsResponse, paymentId)
 	if err != nil {
-		log.Error(err, log.Data{messageOffsetLogKey: message.Offset})
+		log.Error(err, log.Data{keys.Offset: message.Offset})
 		_ = svc.HandleError(err, message.Offset, &paymentDetailsResponse)
 	}
 	return eshus
@@ -335,7 +333,7 @@ func (svc *Service) saveEshuResources(message *sarama.ConsumerMessage, eshus []m
 	for _, eshu := range eshus {
 		err := svc.DAO.CreateEshuResource(&eshu)
 		if err != nil {
-			log.Error(err, log.Data{messageLogKey: "failed to create eshu request in database",
+			log.Error(err, log.Data{keys.Message: "failed to create eshu request in database",
 				"data": eshu})
 			svc.HandleError(err, message.Offset, &eshus)
 		}
@@ -351,7 +349,7 @@ func (svc *Service) getTransactionResources(
 
 	txns, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetailsResponse, paymentId)
 	if err != nil {
-		log.Error(err, log.Data{messageOffsetLogKey: message.Offset})
+		log.Error(err, log.Data{keys.Offset: message.Offset})
 		svc.HandleError(err, message.Offset, &paymentDetailsResponse)
 	}
 	return txns
@@ -365,7 +363,7 @@ func (svc *Service) saveTransactionResources(
 	for _, txn := range txns {
 		err := svc.DAO.CreatePaymentTransactionsResource(&txn)
 		if err != nil {
-			log.Error(err, log.Data{messageLogKey: "failed to create production request in database",
+			log.Error(err, log.Data{keys.Message: "failed to create production request in database",
 				"data": txn})
 			svc.HandleError(err, message.Offset, &txns)
 		}
