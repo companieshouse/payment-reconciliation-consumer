@@ -57,7 +57,8 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 		log.Error(fmt.Errorf("error receiving %s schema: %s", schemaName, err))
 		return nil, err
 	}
-	log.Info("Successfully received schema", log.Data{"schema_name": schemaName})
+
+	log.Info("Successfully received schema", log.Data{keys.SchemaName: schemaName})
 
 	appName := cfg.Namespace()
 
@@ -78,7 +79,11 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 		maxRetries = retry.MaxRetries
 	}
 
-	log.Info("Start Request Create resilient Kafka service", log.Data{"base_topic": consumerTopic, "app_name": appName, "maxRetries": maxRetries, "producer": p})
+	log.Info("Start Request Create resilient Kafka service", log.Data{
+		keys.BaseTopic:  consumerTopic,
+		keys.AppName:    appName,
+		keys.MaxRetries: maxRetries,
+		keys.Producer:   p})
 	rh := resilience.NewHandler(consumerTopic, "consumer", retry, p, &avro.Schema{Definition: ppSchema})
 
 	// Work out what topic we're consuming from, depending on whether were processing resilience or error input
@@ -120,9 +125,10 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 	if cfg.IsErrorConsumer {
 		stopAtOffset, err = client.TopicOffset(cfg.BrokerAddr, topicName)
 		if err != nil {
-			log.Error(err, log.Data{"topic": topicName})
+			log.Error(err, log.Data{keys.Topic: topicName})
 		}
-		log.Info("error queue consumer will stop when backlog offset reached", log.Data{"backlog_offset": stopAtOffset})
+		log.Info("error queue consumer will stop when backlog offset reached",
+			log.Data{keys.BacklogOffset: stopAtOffset})
 	}
 
 	return &Service{
@@ -209,7 +215,8 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						log.Error(err, log.Data{keys.Offset: message.Offset})
 						_ = svc.HandleError(err, message.Offset, &paymentResponse)
 					}
-					log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse, "status_code": statusCode})
+					log.Info("Payment Response : ",
+						log.Data{keys.PaymentResponse: paymentResponse, keys.StatusCode: statusCode})
 
 					if paymentResponse.IsReconcilable() {
 
@@ -224,7 +231,8 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							log.Error(err, log.Data{keys.Offset: message.Offset})
 							_ = svc.HandleError(err, message.Offset, &paymentDetails)
 						}
-						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
+						log.Info("Payment Details Response : ",
+							log.Data{keys.PaymentDetails: paymentDetails, keys.StatusCode: statusCode})
 
 						//Filter accepted payments from GovPay
 						if paymentDetails.PaymentStatus == "accepted" {
@@ -250,7 +258,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 			}
 
 		case err = <-svc.Consumer.Errors():
-			log.Error(err, log.Data{"topic": svc.Topic})
+			log.Error(err, log.Data{keys.Topic: svc.Topic})
 		}
 	}
 
@@ -271,7 +279,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 	wg.Done()
 
-	log.Info("Service successfully shutdown", log.Data{"topic": svc.Topic})
+	log.Info("Service successfully shutdown", log.Data{keys.Topic: svc.Topic})
 }
 
 // We need a function to mask potentially sensitive data fields in the event it's a secure application.
@@ -295,21 +303,21 @@ func (svc *Service) MaskSensitiveFields(payment *data.PaymentResponse) {
 //Shutdown closes all producers and consumers for this service
 func (svc *Service) Shutdown(topic string) {
 
-	log.Info("Shutting down service ", log.Data{"topic": topic})
+	log.Info("Shutting down service ", log.Data{keys.Topic: topic})
 
-	log.Info("Closing producer", log.Data{"topic": topic})
+	log.Info("Closing producer", log.Data{keys.Topic: topic})
 	err := svc.Producer.Close()
 	if err != nil {
 		log.Error(fmt.Errorf("error closing producer: %s", err))
 	}
-	log.Info("Producer successfully closed", log.Data{"topic": svc.Topic})
+	log.Info("Producer successfully closed", log.Data{keys.Topic: svc.Topic})
 
-	log.Info("Closing consumer", log.Data{"topic": topic})
+	log.Info("Closing consumer", log.Data{keys.Topic: topic})
 	err = svc.Consumer.Close()
 	if err != nil {
 		log.Error(fmt.Errorf("error closing consumer: %s", err))
 	}
-	log.Info("Consumer successfully closed", log.Data{"topic": svc.Topic})
+	log.Info("Consumer successfully closed", log.Data{keys.Topic: svc.Topic})
 }
 
 // Creates Eshu resources

@@ -30,6 +30,7 @@ import (
 const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
+const productsLogKey = "products"
 
 var (
 	handleErrorCalled bool = false
@@ -110,7 +111,7 @@ func createProductMap() (*config.ProductMap, error) {
 		return nil, err
 	}
 
-	log.Info("Product map config has been loaded", log.Data{"products": productMap})
+	log.Info("Product map config has been loaded", log.Data{productsLogKey: productMap})
 
 	return productMap, nil
 }

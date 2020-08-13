@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/companieshouse/payment-reconciliation-consumer/data"
+	"github.com/companieshouse/payment-reconciliation-consumer/keys"
 	"io/ioutil"
 	"net/http"
 
@@ -45,7 +46,7 @@ func (impl *Fetch) GetPayment(paymentAPIURL string, HTTPClient *http.Client, api
 	}
 
 	req.SetBasicAuth(apiKey, "")
-	log.Trace("GET request to the payment api to get the payment session", log.Data{"Request": paymentAPIURL})
+	log.Trace("GET request to the payment api to get the payment session", log.Data{keys.Request: paymentAPIURL})
 
 	res, err := HTTPClient.Do(req)
 	if err != nil {
@@ -59,7 +60,7 @@ func (impl *Fetch) GetPayment(paymentAPIURL string, HTTPClient *http.Client, api
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
-	log.Info("Payment response body", log.Data{"payment": string(body)})
+	log.Info("Payment response body", log.Data{keys.Payment: string(body)})
 	if err != nil {
 		return p, res.StatusCode, err
 	}
@@ -81,7 +82,7 @@ func (impl *Fetch) GetPaymentDetails(paymentAPIURL string, HTTPClient *http.Clie
 	}
 
 	req.SetBasicAuth(apiKey, "")
-	log.Trace("GET request to the payment api to get the payment details", log.Data{"Request": paymentAPIURL})
+	log.Trace("GET request to the payment api to get the payment details", log.Data{keys.Request: paymentAPIURL})
 
 	res, err := HTTPClient.Do(req)
 	if err != nil {
@@ -95,7 +96,7 @@ func (impl *Fetch) GetPaymentDetails(paymentAPIURL string, HTTPClient *http.Clie
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
-	log.Info("Payment details response body", log.Data{"payment details": string(body)})
+	log.Info("Payment details response body", log.Data{keys.PaymentDetails: string(body)})
 	if err != nil {
 		return p, res.StatusCode, err
 	}
