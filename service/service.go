@@ -195,7 +195,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					err = paymentProcessedSchema.Unmarshal(message.Value, &pp)
 					if err != nil {
 						log.Error(err, log.Data{keys.Offset: message.Offset})
-						svc.HandleError(err, message.Offset, &message.Value)
+						_ = svc.HandleError(err, message.Offset, &message.Value)
 						continue
 					}
 
@@ -207,7 +207,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					paymentResponse, statusCode, err := svc.Payments.GetPayment(getPaymentURL, svc.Client, svc.APIKey)
 					if err != nil {
 						log.Error(err, log.Data{keys.Offset: message.Offset})
-						svc.HandleError(err, message.Offset, &paymentResponse)
+						_ = svc.HandleError(err, message.Offset, &paymentResponse)
 					}
 					log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse, "status_code": statusCode})
 
@@ -222,7 +222,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 						if err != nil {
 							log.Error(err, log.Data{keys.Offset: message.Offset})
-							svc.HandleError(err, message.Offset, &paymentDetails)
+							_ = svc.HandleError(err, message.Offset, &paymentDetails)
 						}
 						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
 
@@ -335,7 +335,7 @@ func (svc *Service) saveEshuResources(message *sarama.ConsumerMessage, eshus []m
 		if err != nil {
 			log.Error(err, log.Data{keys.Message: "failed to create eshu request in database",
 				"data": eshu})
-			svc.HandleError(err, message.Offset, &eshus)
+			_ = svc.HandleError(err, message.Offset, &eshus)
 		}
 	}
 }
@@ -350,7 +350,7 @@ func (svc *Service) getTransactionResources(
 	txns, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetailsResponse, paymentId)
 	if err != nil {
 		log.Error(err, log.Data{keys.Offset: message.Offset})
-		svc.HandleError(err, message.Offset, &paymentDetailsResponse)
+		_ = svc.HandleError(err, message.Offset, &paymentDetailsResponse)
 	}
 	return txns
 }
@@ -365,7 +365,7 @@ func (svc *Service) saveTransactionResources(
 		if err != nil {
 			log.Error(err, log.Data{keys.Message: "failed to create production request in database",
 				"data": txn})
-			svc.HandleError(err, message.Offset, &txns)
+			_ = svc.HandleError(err, message.Offset, &txns)
 		}
 	}
 }
