@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"github.com/Shopify/sarama"
 	"github.com/companieshouse/chs.go/kafka/consumer/cluster"
@@ -11,6 +12,8 @@ import (
 	"github.com/companieshouse/payment-reconciliation-consumer/data"
 	"github.com/companieshouse/payment-reconciliation-consumer/models"
 	"github.com/companieshouse/payment-reconciliation-consumer/payment"
+	_ "github.com/companieshouse/payment-reconciliation-consumer/testing"
+	"github.com/companieshouse/payment-reconciliation-consumer/testutil"
 	"github.com/companieshouse/payment-reconciliation-consumer/transformer"
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
@@ -21,11 +24,17 @@ import (
 	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 )
 
 const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
+const productsLogKey = "products"
+
+var (
+	handleErrorCalled bool = false
+)
 
 func createMockService(productMap *config.ProductMap, mockPayment *payment.MockFetcher, mockTransformer *transformer.MockTransformer, mockDao *dao.MockDAO) *Service {
 
@@ -40,6 +49,32 @@ func createMockService(productMap *config.ProductMap, mockPayment *payment.MockF
 		ProductMap:     productMap,
 		Client:         &http.Client{},
 		StopAtOffset:   int64(-1),
+		Topic:          "test",
+		HandleError: func(err error, offset int64, str interface{}) error {
+			handleErrorCalled = true
+			return err
+		},
+	}
+}
+
+// Creates a somewhat mocked out Service instance that importantly uses a real Transformer (Transform)
+// allowing a form of integration testing as far as the service and transformer are concerned.
+func createMockServiceWithRealTransformer(productMap *config.ProductMap,
+	mockPayment *payment.MockFetcher,
+	mockDao *dao.MockDAO) *Service {
+
+	return &Service{
+		Producer:       createMockProducer(),
+		PpSchema:       getDefaultSchema(),
+		Payments:       mockPayment,
+		Transformer:    transformer.New(),
+		DAO:            mockDao,
+		PaymentsAPIURL: paymentsAPIUrl,
+		APIKey:         apiKey,
+		ProductMap:     productMap,
+		Client:         &http.Client{},
+		StopAtOffset:   int64(-1),
+		Topic:          "test",
 	}
 }
 
@@ -47,6 +82,7 @@ func createMockConsumerWithMessage() *consumer.GroupConsumer {
 
 	return &consumer.GroupConsumer{
 		GConsumer: MockConsumer{},
+		Group:     MockGroup{},
 	}
 }
 
@@ -60,7 +96,7 @@ func createMockProducer() *producer.Producer {
 func createProductMap() (*config.ProductMap, error) {
 	var productMap *config.ProductMap
 
-	filename, err := filepath.Abs("../assets/product_code.yml")
+	filename, err := filepath.Abs("assets/product_code.yml")
 	if err != nil {
 		return nil, err
 	}
@@ -75,7 +111,7 @@ func createProductMap() (*config.ProductMap, error) {
 		return nil, err
 	}
 
-	log.Info("Product map config has been loaded", log.Data{"products": productMap})
+	log.Info("Product map config has been loaded", log.Data{productsLogKey: productMap})
 
 	return productMap, nil
 }
@@ -113,6 +149,16 @@ func (m MockConsumer) Messages() <-chan *sarama.ConsumerMessage {
 }
 
 func (m MockConsumer) Errors() <-chan error {
+	return nil
+}
+
+type MockGroup struct{}
+
+func (m MockGroup) MarkOffset(msg *sarama.ConsumerMessage, metadata string) {
+
+}
+
+func (m MockGroup) CommitOffsets() error {
 	return nil
 }
 
@@ -181,7 +227,6 @@ func TestUnitStart(t *testing.T) {
 	Convey("Successful process of a single Kafka message for an 'orderable-item' payment", t, func() {
 		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
 	})
-
 }
 
 func TestUnitMaskSensitiveFields(t *testing.T) {
@@ -260,6 +305,111 @@ func TestUnitDoNotMaskNormalFields(t *testing.T) {
 
 }
 
+func TestUnitCertifiedCopies(t *testing.T) {
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	productMap, err := createProductMap()
+	if err != nil {
+		log.Error(fmt.Errorf("error initialising productMap: %s", err), nil)
+	}
+
+	Convey("Successful process of a single message for a certified copies 'orderable-item' payment with multiple costs",
+		t, func() {
+			processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
+				ctrl,
+				productMap,
+				testutil.CertifiedCopiesOrderGetPaymentSessionResponse)
+		})
+
+	Convey("Successful process of a single message for a certified copies 'orderable-item' payment with a single cost",
+		t, func() {
+			processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
+				ctrl,
+				productMap,
+				testutil.CertifiedCopiesSingleCostOrderGetPaymentSessionResponse)
+		})
+
+	Convey("HandleError invoked to handle errors", t, func() {
+
+		mockPayment := payment.NewMockFetcher(ctrl)
+		mockTransformer := transformer.NewMockTransformer(ctrl)
+		mockDao := dao.NewMockDAO(ctrl)
+
+		svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+		message := sarama.ConsumerMessage{Offset: 1}
+		paymentResponse := data.PaymentResponse{}
+		details := data.PaymentDetailsResponse{}
+		paymentId := "paymentResponse ID"
+		mockError := errors.New("test-simulated mock error")
+
+		Convey("HandleError invoked to handle error creating eshus", func() {
+
+			// Given
+			handleErrorCalled = false
+			mockTransformer.EXPECT().
+				GetEshuResource(paymentResponse, details, paymentId).
+				Return(nil, mockError).
+				Times(1)
+
+			// When
+			svc.getEshuResources(&message, paymentResponse, details, paymentId)
+
+			// Then
+			So(handleErrorCalled, ShouldEqual, true)
+
+		})
+
+		Convey("HandleError invoked to handle error saving eshus", func() {
+
+			// Given
+			handleErrorCalled = false
+			eshus := []models.EshuResourceDao{{}}
+			mockDao.EXPECT().CreateEshuResource(&eshus[0]).Return(mockError).Times(1)
+
+			// When
+			svc.saveEshuResources(&message, eshus)
+
+			// Then
+			So(handleErrorCalled, ShouldEqual, true)
+		})
+
+		Convey("HandleError invoked to handle error creating transactions", func() {
+
+			// Given
+			handleErrorCalled = false
+			mockTransformer.EXPECT().
+				GetTransactionResource(paymentResponse, details, paymentId).
+				Return(nil, mockError).
+				Times(1)
+
+			// When
+			svc.getTransactionResources(&message, paymentResponse, details, paymentId)
+
+			// Then
+			So(handleErrorCalled, ShouldEqual, true)
+
+		})
+
+		Convey("HandleError invoked to handle error saving transactions", func() {
+
+			// Given
+			handleErrorCalled = false
+			txns := []models.PaymentTransactionsResourceDao{{}}
+			mockDao.EXPECT().CreatePaymentTransactionsResource(&txns[0]).Return(mockError).Times(1)
+
+			// When
+			svc.saveTransactionResources(&message, txns)
+
+			// Then
+			So(handleErrorCalled, ShouldEqual, true)
+		})
+	})
+
+}
+
 // endConsumerProcess facilitates service termination
 func endConsumerProcess(svc *Service, c chan os.Signal) {
 
@@ -317,20 +467,21 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 				Convey("Then an Eshu resource is constructed", func() {
 
-					var er models.EshuResourceDao
-					mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(er, nil).Times(1)
+					ers := []models.EshuResourceDao{{}}
+					mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(ers, nil).Times(1)
 
 					Convey("And committed to the DB successfully", func() {
-						mockDao.EXPECT().CreateEshuResource(&er).Return(nil).Times(1)
+						mockDao.EXPECT().CreateEshuResource(&ers[0]).Return(nil).Times(1)
 
 						Convey("And a payment transactions resource is constructed", func() {
 
-							var ptr models.PaymentTransactionsResourceDao
-							mockTransformer.EXPECT().GetTransactionResource(pr, pdr, paymentResourceID).Return(ptr, nil).Times(1)
+							ptrs := []models.PaymentTransactionsResourceDao{{}}
+							mockTransformer.EXPECT().
+								GetTransactionResource(pr, pdr, paymentResourceID).Return(ptrs, nil).Times(1)
 
 							Convey("Which is also committed to the DB successfully", func() {
 
-								mockDao.EXPECT().CreatePaymentTransactionsResource(&ptr).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+								mockDao.EXPECT().CreatePaymentTransactionsResource(&ptrs[0]).DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
 
 									// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
 									endConsumerProcess(svc, c)
@@ -345,5 +496,209 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 			})
 		})
 	})
+}
 
+// processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords asserts that a payment of the class specified
+// will result in a call to get the payment details and the creation of eshu and payment_transaction
+// reconciliation records capturing all of the costs involved.
+func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
+	ctrl *gomock.Controller,
+	productMap *config.ProductMap,
+	responseBody string) {
+
+	paymentsAPI := payment.Fetch{}
+	mockHttpClient := testutil.
+		CreateMockClient(true, 200, responseBody)
+	paymentResponse, status, _ := paymentsAPI.GetPayment("http://test-url.com", mockHttpClient, "")
+	expectedNumberOfFilingHistoryDocumentCosts := len(paymentResponse.Costs)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	c := make(chan os.Signal)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockServiceWithRealTransformer(productMap, mockPayment, mockDao)
+
+	Convey("Given a message is readily available for the service to consume", func() {
+
+		svc.Consumer = createMockConsumerWithMessage()
+
+		Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+			mockPayment.EXPECT().
+				GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).
+				Return(paymentResponse, status, nil).
+				Times(1)
+
+			Convey("And the payment details corresponding to the message are fetched successfully", func() {
+
+				paymentDetailsResponse := data.PaymentDetailsResponse{
+					PaymentStatus:   "accepted",
+					TransactionDate: "2020-07-27T09:07:12.864Z",
+				}
+				mockPayment.EXPECT().
+					GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details",
+						svc.Client,
+						apiKey).
+					Return(paymentDetailsResponse, 200, nil).
+					Times(1)
+
+				Convey("Then Eshu (product) resources are constructed", func() {
+
+					expectedTransactionDate, _ := time.Parse(time.RFC3339Nano, paymentDetailsResponse.TransactionDate)
+
+					Convey("And committed to the DB successfully", func() {
+
+						expectProductsToBeCreated(
+							mockDao,
+							expectedTransactionDate,
+							paymentResponse.Costs,
+							expectedNumberOfFilingHistoryDocumentCosts)
+
+						Convey("And payment transaction resources are constructed", func() {
+
+							Convey("Which are also committed to the DB successfully", func() {
+
+								expectTransactionsToBeCreated(
+									mockDao,
+									expectedTransactionDate,
+									paymentResponse.Costs,
+									c,
+									svc)
+
+								log.Info("Starting service under test")
+								svc.Start(wg, c)
+								log.Info("Completing test")
+							})
+						})
+					})
+				})
+			})
+		})
+	})
+}
+
+func expectProductsToBeCreated(
+	mockDao *dao.MockDAO,
+	expectedTransactionDate time.Time,
+	expectedCosts []data.Cost,
+	expectedNumberOfFilingHistoryDocumentCosts int) {
+
+	mockDao.EXPECT().
+		CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[0]))).
+		Return(nil).
+		Times(1)
+
+	if len(expectedCosts) > 1 {
+		mockDao.EXPECT().
+			CreateEshuResource(expectedProduct(expectedTransactionDate, expectedProductCode(expectedCosts[1]))).
+			Return(nil).
+			Times(expectedNumberOfFilingHistoryDocumentCosts - 1)
+	}
+
+}
+
+func expectedProduct(expectedTransactionDate time.Time, expectedProductCode int) *models.EshuResourceDao {
+	return &models.EshuResourceDao{
+		PaymentRef:      "XpaymentResourceID",
+		ProductCode:     expectedProductCode,
+		CompanyNumber:   "00006400",
+		FilingDate:      "",
+		MadeUpdate:      "",
+		TransactionDate: expectedTransactionDate,
+	}
+}
+
+func expectedProductCode(cost data.Cost) int {
+	expectedProductCode := 27000
+	if cost.ProductType == "certified-copy-incorporation-same-day" {
+		expectedProductCode = 27010
+	}
+	return expectedProductCode
+}
+
+func expectTransactionsToBeCreated(
+	mockDao *dao.MockDAO,
+	expectedTransactionDate time.Time,
+	expectedCosts []data.Cost,
+	c chan os.Signal,
+	svc *Service) {
+
+	numberOfCosts := len(expectedCosts)
+
+	mockDao.EXPECT().
+		CreatePaymentTransactionsResource(
+			expectedTransaction(expectedTransactionDate, expectedCosts[0].Amount)).
+		DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+			return endConsumerProcessIfLastTransactionCreated(numberOfCosts, 0, svc, c)
+		}).
+		Times(1)
+
+	if numberOfCosts > 1 {
+		mockDao.EXPECT().
+			CreatePaymentTransactionsResource(
+				expectedTransaction(expectedTransactionDate, expectedCosts[1].Amount)).
+			DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+				return endConsumerProcessIfLastTransactionCreated(numberOfCosts, 1, svc, c)
+			}).
+			Times(1)
+	} else {
+		return
+	}
+
+	if numberOfCosts > 2 {
+		mockDao.EXPECT().
+			CreatePaymentTransactionsResource(
+				expectedTransaction(expectedTransactionDate, expectedCosts[2].Amount)).
+			DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+				return endConsumerProcessIfLastTransactionCreated(numberOfCosts, 2, svc, c)
+			}).
+			Times(1)
+	} else {
+		return
+	}
+
+	if numberOfCosts > 3 {
+		mockDao.EXPECT().
+			CreatePaymentTransactionsResource(
+				expectedTransaction(expectedTransactionDate, expectedCosts[3].Amount)).
+			DoAndReturn(func(ptr *models.PaymentTransactionsResourceDao) error {
+				return endConsumerProcessIfLastTransactionCreated(numberOfCosts, 3, svc, c)
+			}).
+			Times(1)
+	} else {
+		return
+	}
+}
+
+func expectedTransaction(expectedTransactionDate time.Time, expectedCost string) *models.PaymentTransactionsResourceDao {
+	return &models.PaymentTransactionsResourceDao{
+		TransactionID:     "XpaymentResourceID",
+		TransactionDate:   expectedTransactionDate,
+		Email:             "demo@ch.gov.uk",
+		PaymentMethod:     "GovPay",
+		Amount:            expectedCost,
+		CompanyNumber:     "00006400",
+		TransactionType:   "Immediate bill",
+		OrderReference:    "Payments reconciliation testing payment session ref GCI-1312",
+		Status:            "accepted",
+		UserID:            "system",
+		OriginalReference: "",
+		DisputeDetails:    "",
+	}
+}
+
+// Ends the consumer process if the transaction for the last cost has been created.
+// Returns nil error for test code legibility.
+func endConsumerProcessIfLastTransactionCreated(numberOfCosts int, costIndex int, svc *Service, c chan os.Signal) error {
+	log.Info(fmt.Sprintf("CreatePaymentTransactionsResource() invocation %d", costIndex+1))
+	if costIndex == numberOfCosts-1 {
+		// Since this is the last thing the service does, we send a signal to kill
+		// the consumer process gracefully.
+		log.Info(fmt.Sprintf("Closing consumer after invocation %d", costIndex+1))
+		endConsumerProcess(svc, c)
+	}
+	return nil
 }

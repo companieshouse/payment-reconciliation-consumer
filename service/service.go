@@ -3,6 +3,8 @@ package service
 import (
 	"fmt"
 	"github.com/companieshouse/payment-reconciliation-consumer/dao"
+	"github.com/companieshouse/payment-reconciliation-consumer/keys"
+	"github.com/companieshouse/payment-reconciliation-consumer/models"
 	"github.com/companieshouse/payment-reconciliation-consumer/transformer"
 	"net/http"
 	"os"
@@ -55,7 +57,8 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 		log.Error(fmt.Errorf("error receiving %s schema: %s", schemaName, err))
 		return nil, err
 	}
-	log.Info("Successfully received schema", log.Data{"schema_name": schemaName})
+
+	log.Info("Successfully received schema", log.Data{keys.SchemaName: schemaName})
 
 	appName := cfg.Namespace()
 
@@ -76,7 +79,11 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 		maxRetries = retry.MaxRetries
 	}
 
-	log.Info("Start Request Create resilient Kafka service", log.Data{"base_topic": consumerTopic, "app_name": appName, "maxRetries": maxRetries, "producer": p})
+	log.Info("Start Request Create resilient Kafka service", log.Data{
+		keys.BaseTopic:  consumerTopic,
+		keys.AppName:    appName,
+		keys.MaxRetries: maxRetries,
+		keys.Producer:   p})
 	rh := resilience.NewHandler(consumerTopic, "consumer", retry, p, &avro.Schema{Definition: ppSchema})
 
 	// Work out what topic we're consuming from, depending on whether were processing resilience or error input
@@ -118,9 +125,10 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 	if cfg.IsErrorConsumer {
 		stopAtOffset, err = client.TopicOffset(cfg.BrokerAddr, topicName)
 		if err != nil {
-			log.Error(err, log.Data{"topic": topicName})
+			log.Error(err, log.Data{keys.Topic: topicName})
 		}
-		log.Info("error queue consumer will stop when backlog offset reached", log.Data{"backlog_offset": stopAtOffset})
+		log.Info("error queue consumer will stop when backlog offset reached",
+			log.Data{keys.BacklogOffset: stopAtOffset})
 	}
 
 	return &Service{
@@ -162,10 +170,10 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 		if message != nil {
 			// Commit the message we've just been processing before starting the next
-			log.Trace("Committing message", log.Data{"offset": message.Offset})
+			log.Trace("Committing message", log.Data{keys.Offset: message.Offset})
 			svc.Consumer.MarkOffset(message, "")
 			if err := svc.Consumer.CommitOffsets(); err != nil {
-				log.Error(err, log.Data{"offset": message.Offset})
+				log.Error(err, log.Data{keys.Offset: message.Offset})
 			}
 		}
 
@@ -192,8 +200,8 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 					err = paymentProcessedSchema.Unmarshal(message.Value, &pp)
 					if err != nil {
-						log.Error(err, log.Data{"message_offset": message.Offset})
-						svc.HandleError(err, message.Offset, &message.Value)
+						log.Error(err, log.Data{keys.Offset: message.Offset})
+						_ = svc.HandleError(err, message.Offset, &message.Value)
 						continue
 					}
 
@@ -204,10 +212,11 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					//Call GetPayment payment session from payments API
 					paymentResponse, statusCode, err := svc.Payments.GetPayment(getPaymentURL, svc.Client, svc.APIKey)
 					if err != nil {
-						log.Error(err, log.Data{"message_offset": message.Offset})
-						svc.HandleError(err, message.Offset, &paymentResponse)
+						log.Error(err, log.Data{keys.Offset: message.Offset})
+						_ = svc.HandleError(err, message.Offset, &paymentResponse)
 					}
-					log.Info("Payment Response : ", log.Data{"payment_response": paymentResponse, "status_code": statusCode})
+					log.Info("Payment Response : ",
+						log.Data{keys.PaymentResponse: paymentResponse, keys.StatusCode: statusCode})
 
 					if paymentResponse.IsReconcilable() {
 
@@ -219,10 +228,11 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						paymentDetails, statusCode, err := svc.Payments.GetPaymentDetails(getPaymentDetailsURL, svc.Client, svc.APIKey)
 
 						if err != nil {
-							log.Error(err, log.Data{"message_offset": message.Offset})
-							svc.HandleError(err, message.Offset, &paymentDetails)
+							log.Error(err, log.Data{keys.Offset: message.Offset})
+							_ = svc.HandleError(err, message.Offset, &paymentDetails)
 						}
-						log.Info("Payment Details Response : ", log.Data{"payment_details": paymentDetails, "status_code": statusCode})
+						log.Info("Payment Details Response : ",
+							log.Data{keys.PaymentDetails: paymentDetails, keys.StatusCode: statusCode})
 
 						//Filter accepted payments from GovPay
 						if paymentDetails.PaymentStatus == "accepted" {
@@ -230,42 +240,25 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							// We need to remove sensitive data fields for secure applications.
 							svc.MaskSensitiveFields(&paymentResponse)
 
-							//Get Eshu resource
-							eshu, err := svc.Transformer.GetEshuResource(paymentResponse, paymentDetails, pp.ResourceURI)
-							if err != nil {
-								log.Error(err, log.Data{"message_offset": message.Offset})
-								svc.HandleError(err, message.Offset, &paymentDetails)
-							}
+							// Get Eshu resources
+							eshus := svc.getEshuResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
 
-							//Add Eshu object to the Database
-							err = svc.DAO.CreateEshuResource(&eshu)
-							if err != nil {
-								log.Error(err, log.Data{"message": "failed to create eshu request in database",
-									"data": eshu})
-								svc.HandleError(err, message.Offset, &eshu)
-							}
+							//Add Eshu objects to the Database
+							svc.saveEshuResources(message, eshus)
 
-							//Build Payment Transaction database object
-							payTrans, err := svc.Transformer.GetTransactionResource(paymentResponse, paymentDetails, pp.ResourceURI)
-							if err != nil {
-								log.Error(err, log.Data{"message_offset": message.Offset})
-								svc.HandleError(err, message.Offset, &paymentDetails)
-							}
+							//Build Payment Transaction database objects
+							txns := svc.getTransactionResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
 
-							//Add Payment Transaction to the Database
-							err = svc.DAO.CreatePaymentTransactionsResource(&payTrans)
-							if err != nil {
-								log.Error(err, log.Data{"message": "failed to create production request in database",
-									"data": payTrans})
-								svc.HandleError(err, message.Offset, &payTrans)
-							}
+							//Add Payment Transactions to the Database
+							svc.saveTransactionResources(message, txns)
+
 						}
 					}
 				}
 			}
 
 		case err = <-svc.Consumer.Errors():
-			log.Error(err, log.Data{"topic": svc.Topic})
+			log.Error(err, log.Data{keys.Topic: svc.Topic})
 		}
 	}
 
@@ -286,7 +279,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 	wg.Done()
 
-	log.Info("Service successfully shutdown", log.Data{"topic": svc.Topic})
+	log.Info("Service successfully shutdown", log.Data{keys.Topic: svc.Topic})
 }
 
 // We need a function to mask potentially sensitive data fields in the event it's a secure application.
@@ -310,19 +303,77 @@ func (svc *Service) MaskSensitiveFields(payment *data.PaymentResponse) {
 //Shutdown closes all producers and consumers for this service
 func (svc *Service) Shutdown(topic string) {
 
-	log.Info("Shutting down service ", log.Data{"topic": topic})
+	log.Info("Shutting down service ", log.Data{keys.Topic: topic})
 
-	log.Info("Closing producer", log.Data{"topic": topic})
+	log.Info("Closing producer", log.Data{keys.Topic: topic})
 	err := svc.Producer.Close()
 	if err != nil {
 		log.Error(fmt.Errorf("error closing producer: %s", err))
 	}
-	log.Info("Producer successfully closed", log.Data{"topic": svc.Topic})
+	log.Info("Producer successfully closed", log.Data{keys.Topic: svc.Topic})
 
-	log.Info("Closing consumer", log.Data{"topic": topic})
+	log.Info("Closing consumer", log.Data{keys.Topic: topic})
 	err = svc.Consumer.Close()
 	if err != nil {
 		log.Error(fmt.Errorf("error closing consumer: %s", err))
 	}
-	log.Info("Consumer successfully closed", log.Data{"topic": svc.Topic})
+	log.Info("Consumer successfully closed", log.Data{keys.Topic: svc.Topic})
+}
+
+// Creates Eshu resources
+func (svc *Service) getEshuResources(
+	message *sarama.ConsumerMessage,
+	paymentResponse data.PaymentResponse,
+	paymentDetailsResponse data.PaymentDetailsResponse,
+	paymentId string) []models.EshuResourceDao {
+
+	eshus, err := svc.Transformer.GetEshuResources(paymentResponse, paymentDetailsResponse, paymentId)
+	if err != nil {
+		log.Error(err, log.Data{keys.Offset: message.Offset})
+		_ = svc.HandleError(err, message.Offset, &paymentDetailsResponse)
+	}
+	return eshus
+}
+
+// Saves Eshu resources to the Database
+func (svc *Service) saveEshuResources(message *sarama.ConsumerMessage, eshus []models.EshuResourceDao) {
+
+	for _, eshu := range eshus {
+		err := svc.DAO.CreateEshuResource(&eshu)
+		if err != nil {
+			log.Error(err, log.Data{keys.Message: "failed to create eshu request in database",
+				"data": eshu})
+			_ = svc.HandleError(err, message.Offset, &eshus)
+		}
+	}
+}
+
+// Creates Payment Transaction database objects
+func (svc *Service) getTransactionResources(
+	message *sarama.ConsumerMessage,
+	paymentResponse data.PaymentResponse,
+	paymentDetailsResponse data.PaymentDetailsResponse,
+	paymentId string) []models.PaymentTransactionsResourceDao {
+
+	txns, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetailsResponse, paymentId)
+	if err != nil {
+		log.Error(err, log.Data{keys.Offset: message.Offset})
+		_ = svc.HandleError(err, message.Offset, &paymentDetailsResponse)
+	}
+	return txns
+}
+
+// Saves Eshu resources to the database
+func (svc *Service) saveTransactionResources(
+	message *sarama.ConsumerMessage,
+	txns []models.PaymentTransactionsResourceDao) {
+
+	for _, txn := range txns {
+		err := svc.DAO.CreatePaymentTransactionsResource(&txn)
+		if err != nil {
+			log.Error(err, log.Data{keys.Message: "failed to create production request in database",
+				"data": txn})
+			_ = svc.HandleError(err, message.Offset, &txns)
+		}
+	}
 }

@@ -10,8 +10,8 @@ import (
 
 // Transformer provides an interface by which to transform payment models to reconciliation entities
 type Transformer interface {
-	GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) (models.EshuResourceDao, error)
-	GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) (models.PaymentTransactionsResourceDao, error)
+	GetEshuResources(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) ([]models.EshuResourceDao, error)
+	GetTransactionResources(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) ([]models.PaymentTransactionsResourceDao, error)
 }
 
 // Transform implements the Transformer interface
@@ -23,57 +23,65 @@ func New() *Transform {
 	return &Transform{}
 }
 
-// GetEshuResource transforms payment data into an Eshu resource entity
-func (t *Transform) GetEshuResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) (models.EshuResourceDao, error) {
+// GetEshuResources transforms payment data into Eshu resource entities
+func (t *Transform) GetEshuResources(payment data.PaymentResponse,
+	paymentDetails data.PaymentDetailsResponse,
+	paymentId string) ([]models.EshuResourceDao, error) {
 
-	var eshuResource models.EshuResourceDao
+	eshuResources := []models.EshuResourceDao{}
 
 	productMap, err := config.GetProductMap()
 	if err != nil {
-		return eshuResource, err
+		return eshuResources, err
 	}
 
 	transactionDate, err := time.Parse(time.RFC3339Nano, paymentDetails.TransactionDate)
 	if err != nil {
-		return eshuResource, err
+		return eshuResources, err
 	}
 
-	eshuResource = models.EshuResourceDao{
-		PaymentRef:      "X" + paymentId,
-		ProductCode:     productMap.Codes[payment.Costs[0].ProductType],
-		CompanyNumber:   payment.CompanyNumber,
-		FilingDate:      "",
-		MadeUpdate:      "",
-		TransactionDate: transactionDate,
+	for _, cost := range payment.Costs {
+		eshuResources = append(eshuResources, models.EshuResourceDao{
+			PaymentRef:      "X" + paymentId,
+			ProductCode:     productMap.Codes[cost.ProductType],
+			CompanyNumber:   payment.CompanyNumber,
+			FilingDate:      "",
+			MadeUpdate:      "",
+			TransactionDate: transactionDate,
+		})
 	}
 
-	return eshuResource, nil
+	return eshuResources, nil
 }
 
-// GetTransactionResource transforms payment data into a payment transaction resource entity
-func (t *Transform) GetTransactionResource(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) (models.PaymentTransactionsResourceDao, error) {
+// GetTransactionResources transforms payment data into payment transaction resource entities
+func (t *Transform) GetTransactionResources(payment data.PaymentResponse,
+	paymentDetails data.PaymentDetailsResponse,
+	paymentId string) ([]models.PaymentTransactionsResourceDao, error) {
 
-	var paymentTransactionsResource models.PaymentTransactionsResourceDao
+	paymentTransactionsResources := []models.PaymentTransactionsResourceDao{}
 
 	transactionDate, err := time.Parse(time.RFC3339Nano, paymentDetails.TransactionDate)
 	if err != nil {
-		return paymentTransactionsResource, err
+		return paymentTransactionsResources, err
 	}
 
-	paymentTransactionsResource = models.PaymentTransactionsResourceDao{
-		TransactionID:     "X" + paymentId,
-		TransactionDate:   transactionDate,
-		Email:             payment.CreatedBy.Email,
-		PaymentMethod:     payment.PaymentMethod,
-		Amount:            payment.Amount,
-		CompanyNumber:     payment.CompanyNumber,
-		TransactionType:   "Immediate bill",
-		OrderReference:    strings.Replace(payment.Reference, "_", "-", -1),
-		Status:            paymentDetails.PaymentStatus,
-		UserID:            "system",
-		OriginalReference: "",
-		DisputeDetails:    "",
+	for _, cost := range payment.Costs {
+		paymentTransactionsResources = append(paymentTransactionsResources, models.PaymentTransactionsResourceDao{
+			TransactionID:     "X" + paymentId,
+			TransactionDate:   transactionDate,
+			Email:             payment.CreatedBy.Email,
+			PaymentMethod:     payment.PaymentMethod,
+			Amount:            cost.Amount,
+			CompanyNumber:     payment.CompanyNumber,
+			TransactionType:   "Immediate bill",
+			OrderReference:    strings.Replace(payment.Reference, "_", "-", -1),
+			Status:            paymentDetails.PaymentStatus,
+			UserID:            "system",
+			OriginalReference: "",
+			DisputeDetails:    "",
+		})
 	}
 
-	return paymentTransactionsResource, nil
+	return paymentTransactionsResources, nil
 }
