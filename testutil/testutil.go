@@ -138,6 +138,48 @@ const CertifiedCopiesSingleCostOrderGetPaymentSessionResponse = `{
     "kind": "payment-session#payment-session"
 }`
 
+const MissingImageDeliveryOrderGetPaymentSessionResponse = `{
+    "amount": "3.00",
+    "completed_at": "2020-10-08T11:55:41.48Z",
+    "created_at": "2020-10-08T11:55:09.039Z",
+    "created_by": {
+        "email": "lmccarthy@companieshouse.gov.uk",
+        "forename": "",
+        "id": "eELukBtEOUfpWKQMSOLdRzDBues",
+        "surname": ""
+    },
+    "description": "",
+    "links": {
+        "journey": "https://payments.apollo1.aws.chdev.org/payments/DELIxNWpDkEL9iS/pay",
+        "resource": "https://api.apollo1.aws.chdev.org/basket/checkouts/ORD-420216-021581/payment",
+        "self": "payments/DELIxNWpDkEL9iS"
+    },
+    "payment_method": "GovPay",
+    "reference": "orderable_item_ORD-420216-021581",
+    "company_number": "10371283",
+    "status": "paid",
+    "costs": [
+        {
+            "amount": "3",
+            "available_payment_methods": [
+                "credit-card"
+            ],
+            "class_of_payment": [
+                "orderable-item"
+            ],
+            "description": "missing image delivery for company 10371283",
+            "description_identifier": "missing-image-delivery",
+            "product_type": "missing-image-delivery",
+            "description_values": {
+                "company_number": "10371283",
+                "missing-image-delivery": "missing image delivery for company 10371283"
+            }
+        }
+    ],
+    "etag": "a3e7a5154002a4c2944a2b1ecd13b68eb2568dc479709e8e86a5a2ab",
+    "kind": "payment-session#payment-session"
+}`
+
 func CreateMockClient(hasResponseBody bool, status int, responseBody string) *http.Client {
 
 	mockStreamServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
