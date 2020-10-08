@@ -169,7 +169,7 @@ const MissingImageDeliveryOrderGetPaymentSessionResponse = `{
             ],
             "description": "missing image delivery for company 10371283",
             "description_identifier": "missing-image-delivery",
-            "product_type": "missing-image-delivery",
+            "product_type": "missing-image-delivery-accounts",
             "description_values": {
                 "company_number": "10371283",
                 "missing-image-delivery": "missing image delivery for company 10371283"
