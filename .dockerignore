@@ -1,0 +1,14 @@
+*
+
+!assets
+!config
+!dao
+!data
+!keys
+!models
+!payment
+!service
+!transformer
+!go.mod
+!go.sum
+!main.go
