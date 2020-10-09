@@ -331,6 +331,17 @@ func TestUnitCertifiedCopies(t *testing.T) {
 				testutil.CertifiedCopiesSingleCostOrderGetPaymentSessionResponse)
 		})
 
+	// GCI-1534: Change the product_type value in the MissingImageDeliveryOrderGetPaymentSessionResponse from
+	// missing-image-delivery-accounts to missing-image-delivery and the test will fail. In that case,
+	// the ESHU record product code will be 0 rather than 14010, as seen in GCI-1534.
+	Convey("Successful process of a single message for a missing image delivery 'orderable-item' payment",
+		t, func() {
+			processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
+				ctrl,
+				productMap,
+				testutil.MissingImageDeliveryOrderGetPaymentSessionResponse)
+		})
+
 	Convey("HandleError invoked to handle errors", t, func() {
 
 		mockPayment := payment.NewMockFetcher(ctrl)
@@ -615,6 +626,9 @@ func expectedProductCode(cost data.Cost) int {
 	expectedProductCode := 27000
 	if cost.ProductType == "certified-copy-incorporation-same-day" {
 		expectedProductCode = 27010
+	}
+	if cost.ProductType == "missing-image-delivery-accounts" {
+		expectedProductCode = 14010
 	}
 	return expectedProductCode
 }
