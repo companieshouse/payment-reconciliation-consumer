@@ -143,7 +143,7 @@ const MissingImageDeliveryOrderGetPaymentSessionResponse = `{
     "completed_at": "2020-10-08T11:55:41.48Z",
     "created_at": "2020-10-08T11:55:09.039Z",
     "created_by": {
-        "email": "lmccarthy@companieshouse.gov.uk",
+        "email": "demo@ch.gov.uk",
         "forename": "",
         "id": "eELukBtEOUfpWKQMSOLdRzDBues",
         "surname": ""
@@ -155,8 +155,8 @@ const MissingImageDeliveryOrderGetPaymentSessionResponse = `{
         "self": "payments/DELIxNWpDkEL9iS"
     },
     "payment_method": "GovPay",
-    "reference": "orderable_item_ORD-420216-021581",
-    "company_number": "10371283",
+    "reference": "Payments reconciliation testing payment session ref GCI-1312",
+    "company_number": "00006400",
     "status": "paid",
     "costs": [
         {
@@ -171,7 +171,7 @@ const MissingImageDeliveryOrderGetPaymentSessionResponse = `{
             "description_identifier": "missing-image-delivery",
             "product_type": "missing-image-delivery-accounts",
             "description_values": {
-                "company_number": "10371283",
+                "company_number": "00006400",
                 "missing-image-delivery": "missing image delivery for company 10371283"
             }
         }
