@@ -10,20 +10,21 @@ const Penalty = "penalty"
 
 // PaymentResponse represents a response from the payment service GET payment endpoint
 type PaymentResponse struct {
-	Amount                  string       `json:"amount"`
-	AvailablePaymentMethods []string     `json:"available_payment_methods,omitempty"`
-	CompletedAt             time.Time    `json:"completed_at,omitempty"`
-	CreatedAt               time.Time    `json:"created_at,omitempty"`
-	CreatedBy               Created      `json:"created_by"`
-	Description             string       `json:"description"`
-	Links                   PaymentLinks `json:"links"`
-	PaymentMethod           string       `json:"payment_method,omitempty"`
-	Reference               string       `json:"reference,omitempty"`
-	CompanyNumber           string       `json:"company_number,omitempty"`
-	Status                  string       `json:"status"`
-	Costs                   []Cost       `json:"costs"`
-	Etag                    string       `json:"etag"`
-	Kind                    string       `json:"kind"`
+	Amount                  string           `json:"amount"`
+	AvailablePaymentMethods []string         `json:"available_payment_methods,omitempty"`
+	CompletedAt             time.Time        `json:"completed_at,omitempty"`
+	CreatedAt               time.Time        `json:"created_at,omitempty"`
+	CreatedBy               Created          `json:"created_by"`
+	Description             string           `json:"description"`
+	Links                   PaymentLinks     `json:"links"`
+	PaymentMethod           string           `json:"payment_method,omitempty"`
+	Reference               string           `json:"reference,omitempty"`
+	CompanyNumber           string           `json:"company_number,omitempty"`
+	Status                  string           `json:"status"`
+	Costs                   []Cost           `json:"costs"`
+	Etag                    string           `json:"etag"`
+	Kind                    string           `json:"kind"`
+	Refunds                 []RefundResource `json:"refunds"`
 }
 
 // Cost represents a cost data structure
@@ -50,6 +51,14 @@ type Created struct {
 	Forename string `json:"forename"`
 	ID       string `json:"id"`
 	Surname  string `json:"surname"`
+}
+
+type RefundResource struct {
+	RefundId          string `json:"refund_id"`
+	CreatedAt         string `json:"created_at"`
+	Amount            int    `json:"amount"`
+	Status            string `json:"status"`
+	ExternalRefundUrl string `json:"external_refund_url"`
 }
 
 // Indicates whether the payment is reconcilable or not.

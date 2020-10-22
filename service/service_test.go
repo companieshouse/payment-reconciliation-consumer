@@ -211,10 +211,10 @@ func TestUnitStart(t *testing.T) {
 					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Times(0)
 
 					Convey("And no Eshu resource is ever constructed", func() {
-						mockTransformer.EXPECT().GetEshuResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+						mockTransformer.EXPECT().GetEshuResources(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 						Convey("Nor is a transactions resource created", func() {
-							mockTransformer.EXPECT().GetTransactionResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+							mockTransformer.EXPECT().GetTransactionResources(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 							svc.Start(wg, c)
 						})
@@ -350,7 +350,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			// Given
 			handleErrorCalled = false
 			mockTransformer.EXPECT().
-				GetEshuResource(paymentResponse, details, paymentId).
+				GetEshuResources(paymentResponse, details, paymentId).
 				Return(nil, mockError).
 				Times(1)
 
@@ -381,7 +381,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			// Given
 			handleErrorCalled = false
 			mockTransformer.EXPECT().
-				GetTransactionResource(paymentResponse, details, paymentId).
+				GetTransactionResources(paymentResponse, details, paymentId).
 				Return(nil, mockError).
 				Times(1)
 
@@ -468,7 +468,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 				Convey("Then an Eshu resource is constructed", func() {
 
 					ers := []models.EshuResourceDao{{}}
-					mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(ers, nil).Times(1)
+					mockTransformer.EXPECT().GetEshuResources(pr, pdr, paymentResourceID).Return(ers, nil).Times(1)
 
 					Convey("And committed to the DB successfully", func() {
 						mockDao.EXPECT().CreateEshuResource(&ers[0]).Return(nil).Times(1)
@@ -477,7 +477,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 							ptrs := []models.PaymentTransactionsResourceDao{{}}
 							mockTransformer.EXPECT().
-								GetTransactionResource(pr, pdr, paymentResourceID).Return(ptrs, nil).Times(1)
+								GetTransactionResources(pr, pdr, paymentResourceID).Return(ptrs, nil).Times(1)
 
 							Convey("Which is also committed to the DB successfully", func() {
 

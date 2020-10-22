@@ -42,5 +42,20 @@ func TestUnitErrorHandling(t *testing.T) {
 		So(err, ShouldNotBeNil)
 
 	})
+	Convey("GetRefundResource propagates refund date parsing error", t, func() {
+
+		// Given
+		transformerUnderTest := Transform{}
+
+		// When
+		_, err := transformerUnderTest.GetRefundResource(
+			data.PaymentResponse{},
+			data.RefundResource{CreatedAt: unparsableTransactionDate},
+			"paymentId string")
+
+		// Then
+		So(err, ShouldNotBeNil)
+
+	})
 
 }

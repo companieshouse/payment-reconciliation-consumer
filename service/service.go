@@ -234,24 +234,41 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						log.Info("Payment Details Response : ",
 							log.Data{keys.PaymentDetails: paymentDetails, keys.StatusCode: statusCode})
 
-						//Filter accepted payments from GovPay
-						if paymentDetails.PaymentStatus == "accepted" {
+						if pp.RefundId != "" {
+							refund := data.RefundResource{}
+							for _, ref := range paymentResponse.Refunds {
+								if ref.RefundId == pp.RefundId {
+									refund = ref
+								}
+							}
 
-							// We need to remove sensitive data fields for secure applications.
-							svc.MaskSensitiveFields(&paymentResponse)
+							if refund.Status == "success" {
+								// We need to remove sensitive data fields for secure applications.
+								svc.MaskSensitiveFields(&paymentResponse)
 
-							// Get Eshu resources
-							eshus := svc.getEshuResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
+								refundResource := svc.getRefundResource(message, paymentResponse, refund, pp.ResourceURI)
 
-							//Add Eshu objects to the Database
-							svc.saveEshuResources(message, eshus)
+								svc.saveRefundResource(message, refundResource)
+							}
+						} else {
+							//Filter accepted payments from GovPay
+							if paymentDetails.PaymentStatus == "accepted" {
 
-							//Build Payment Transaction database objects
-							txns := svc.getTransactionResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
+								// We need to remove sensitive data fields for secure applications.
+								svc.MaskSensitiveFields(&paymentResponse)
 
-							//Add Payment Transactions to the Database
-							svc.saveTransactionResources(message, txns)
+								// Get Eshu resources
+								eshus := svc.getEshuResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
 
+								//Add Eshu objects to the Database
+								svc.saveEshuResources(message, eshus)
+
+								//Build Payment Transaction database objects
+								txns := svc.getTransactionResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
+
+								//Add Payment Transactions to the Database
+								svc.saveTransactionResources(message, txns)
+							}
 						}
 					}
 				}
@@ -363,7 +380,7 @@ func (svc *Service) getTransactionResources(
 	return txns
 }
 
-// Saves Eshu resources to the database
+// Saves Transaction resources to the database
 func (svc *Service) saveTransactionResources(
 	message *sarama.ConsumerMessage,
 	txns []models.PaymentTransactionsResourceDao) {
@@ -375,5 +392,33 @@ func (svc *Service) saveTransactionResources(
 				"data": txn})
 			_ = svc.HandleError(err, message.Offset, &txns)
 		}
+	}
+}
+
+// Creates Refund resources
+func (svc *Service) getRefundResource(
+	message *sarama.ConsumerMessage,
+	paymentResponse data.PaymentResponse,
+	refund data.RefundResource,
+	paymentId string) models.RefundResourceDao {
+
+	refundResource, err := svc.Transformer.GetRefundResource(paymentResponse, refund, paymentId)
+	if err != nil {
+		log.Error(err, log.Data{keys.Offset: message.Offset})
+		_ = svc.HandleError(err, message.Offset, &refund)
+	}
+	return refundResource
+}
+
+// Saves Refund resources to the database
+func (svc *Service) saveRefundResource(
+	message *sarama.ConsumerMessage,
+	refund models.RefundResourceDao) {
+
+	err := svc.DAO.CreateRefundResource(&refund)
+	if err != nil {
+		log.Error(err, log.Data{keys.Message: "failed to create refund request in database",
+			"data": refund})
+		_ = svc.HandleError(err, message.Offset, &refund)
 	}
 }

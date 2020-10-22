@@ -8,4 +8,5 @@ import (
 type DAO interface {
 	CreateEshuResource(dao *models.EshuResourceDao) error
 	CreatePaymentTransactionsResource(dao *models.PaymentTransactionsResourceDao) error
+	CreateRefundResource(dao *models.RefundResourceDao) error
 }

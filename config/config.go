@@ -25,6 +25,7 @@ type Config struct {
 	Database                       string      `env:"RECONCILIATION_MONGODB_DATABASE"               flag:"mongodb-database"                             flagDesc:"MongoDB database for data"`
 	TransactionsCollection         string      `env:"MONGODB_PAYMENT_REC_TRANSACTIONS_COLLECTION"   flag:"mongodb-payment-rec-transactions-collection"  flagDesc:"MongoDB collection for payment transactions data"`
 	ProductsCollection             string      `env:"MONGODB_PAYMENT_REC_PRODUCTS_COLLECTION"       flag:"mongodb-payment-rec-products-collection"      flagDesc:"MongoDB collection for payment products data"`
+	RefundsCollection              string      `env:"MONGODB_PAYMENT_REC_REFUNDS_COLLECTION"        flag:"mongodb-payment-rec-refunds-collection"       flagDesc:"MongoDB collection for refunds data"`
 }
 
 // ProductMap contains a map of product codes
