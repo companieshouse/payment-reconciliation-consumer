@@ -58,4 +58,51 @@ func TestUnitErrorHandling(t *testing.T) {
 
 	})
 
+	Convey("GetRefundResource correctly maps data", t, func() {
+
+		// Given
+		transformerUnderTest := Transform{}
+		paymentId := "paymentId string"
+
+		paymentResponse := data.PaymentResponse{
+			CreatedBy: data.Created{
+				Email: "exampleEmail",
+			},
+			PaymentMethod: "credit-card",
+			CompanyNumber: "companyNumber",
+			Reference:     "example_reference",
+			Costs: []data.Cost{{
+				ProductType: "ds01",
+			}},
+		}
+		refundResource := data.RefundResource{
+			RefundId:  "refundId",
+			CreatedAt: "2020-10-21T15:48:30.551Z",
+			Amount:    800,
+			Status:    "success",
+		}
+
+		// When
+		resourceDao, err := transformerUnderTest.GetRefundResource(
+			paymentResponse,
+			refundResource,
+			paymentId)
+
+		// Then
+
+		So(err, ShouldBeNil)
+		So(resourceDao.Status, ShouldEqual, refundResource.Status)
+		So(resourceDao.TransactionID, ShouldEqual, "X"+refundResource.RefundId)
+		So(resourceDao.TransactionType, ShouldEqual, "Refund")
+		So(resourceDao.TransactionDate, ShouldNotBeNil)
+		So(resourceDao.Amount, ShouldEqual, "800")
+		So(resourceDao.Email, ShouldEqual, paymentResponse.CreatedBy.Email)
+		So(resourceDao.CompanyNumber, ShouldEqual, paymentResponse.CompanyNumber)
+		So(resourceDao.PaymentMethod, ShouldEqual, paymentResponse.PaymentMethod)
+		So(resourceDao.OrderReference, ShouldEqual, "example-reference")
+		So(resourceDao.UserID, ShouldEqual, "system")
+		So(resourceDao.OriginalReference, ShouldEqual, "X"+paymentId)
+		So(resourceDao.ProductCode, ShouldEqual, 16032)
+		So(resourceDao.DisputeDetails, ShouldEqual, "")
+	})
 }

@@ -3,7 +3,7 @@ module github.com/companieshouse/payment-reconciliation-consumer
 go 1.12
 
 require (
-	github.com/Shopify/sarama v1.27.2
+	github.com/Shopify/sarama v1.24.1
 	github.com/bsm/sarama-cluster v2.1.15+incompatible // indirect
 	github.com/companieshouse/chs.go v1.1.1
 	github.com/globalsign/mgo v0.0.0-20181015135952-eeefdecb41b8
