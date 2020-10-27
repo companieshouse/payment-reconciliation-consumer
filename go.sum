@@ -8,6 +8,7 @@ github.com/bsm/sarama-cluster v2.1.15+incompatible h1:RkV6WiNRnqEEbp81druK8zYhmn
 github.com/bsm/sarama-cluster v2.1.15+incompatible/go.mod h1:r7ao+4tTNXvWm+VRpRJchr2kQhqxgmAp2iEX5W96gMM=
 github.com/companieshouse/chs.go v1.1.1 h1:iX+Kp01LSMrW/jVnFCshtmz29jzt9Sj9qqX7eaqYE5U=
 github.com/companieshouse/chs.go v1.1.1/go.mod h1:fI/z3fegJtQyjOWP2HSj+im96Djn399DbckG3Mi1eAo=
+github.com/companieshouse/chs.go v1.2.0 h1:wFE5bcaYESyWdYSqJuQ4pquVubSlJS+WCkS0cfC2Arg=
 github.com/companieshouse/chs.go v1.2.0/go.mod h1:fI/z3fegJtQyjOWP2HSj+im96Djn399DbckG3Mi1eAo=
 github.com/companieshouse/htmlform v0.1.0/go.mod h1:fWScPVYjGyeBhYwppGaGRDtCQ5hMd3t3Q+0I6HaUZT4=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=

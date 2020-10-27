@@ -187,7 +187,7 @@ func TestUnitStart(t *testing.T) {
 	}
 
 	Convey("Successful process of a single Kafka message for a 'data-maintenance' payment", t, func() {
-		//processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.DataMaintenance)
+		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.DataMaintenance)
 	})
 
 	Convey("Process of a single Kafka message for a 'penalty' payment", t, func() {
