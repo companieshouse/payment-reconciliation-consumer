@@ -629,20 +629,22 @@ func processingOfRefundKafkaMessageWithMultipleRefundsCreatesReconciliationRecor
 			pr := data.PaymentResponse{
 				CompanyNumber: "123456",
 				Costs:         []data.Cost{cost},
-				Refunds: []data.RefundResource{{
-					RefundId:          refundID,
-					CreatedAt:         "",
-					Amount:            0,
-					Status:            "success",
-					ExternalRefundUrl: "",
-				},
+				Refunds: []data.RefundResource{
+					{
+						RefundId:          refundID,
+						CreatedAt:         "",
+						Amount:            0,
+						Status:            "success",
+						ExternalRefundUrl: "",
+					},
 					{
 						RefundId:          refundID + "1",
 						CreatedAt:         "",
 						Amount:            0,
 						Status:            "failed",
 						ExternalRefundUrl: "",
-					}},
+					},
+				},
 			}
 
 			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
