@@ -24,7 +24,7 @@ type PaymentResponse struct {
 	Costs                   []Cost           `json:"costs"`
 	Etag                    string           `json:"etag"`
 	Kind                    string           `json:"kind"`
-	Refunds                 []RefundResource `json:"refunds"`
+	Refunds                 []RefundResource `json:"refunds,omitempty"`
 }
 
 // Cost represents a cost data structure

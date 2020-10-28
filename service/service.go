@@ -234,7 +234,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						log.Info("Payment Details Response : ",
 							log.Data{keys.PaymentDetails: paymentDetails, keys.StatusCode: statusCode})
 
-						if pp.RefundId != "" {
+						if isRefundTransaction(pp) {
 							refund := data.RefundResource{}
 							for _, ref := range paymentResponse.Refunds {
 								if ref.RefundId == pp.RefundId {
@@ -250,25 +250,22 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 								svc.saveRefundResource(message, refundResource)
 							}
-						} else {
-							//Filter accepted payments from GovPay
-							if paymentDetails.PaymentStatus == "accepted" {
+						} else if paymentDetails.PaymentStatus == "accepted" {
 
-								// We need to remove sensitive data fields for secure applications.
-								svc.MaskSensitiveFields(&paymentResponse)
+							// We need to remove sensitive data fields for secure applications.
+							svc.MaskSensitiveFields(&paymentResponse)
 
-								// Get Eshu resources
-								eshus := svc.getEshuResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
+							// Get Eshu resources
+							eshus := svc.getEshuResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
 
-								//Add Eshu objects to the Database
-								svc.saveEshuResources(message, eshus)
+							//Add Eshu objects to the Database
+							svc.saveEshuResources(message, eshus)
 
-								//Build Payment Transaction database objects
-								txns := svc.getTransactionResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
+							//Build Payment Transaction database objects
+							txns := svc.getTransactionResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
 
-								//Add Payment Transactions to the Database
-								svc.saveTransactionResources(message, txns)
-							}
+							//Add Payment Transactions to the Database
+							svc.saveTransactionResources(message, txns)
 						}
 					}
 				}
@@ -421,4 +418,8 @@ func (svc *Service) saveRefundResource(
 			"data": refund})
 		_ = svc.HandleError(err, message.Offset, &refund)
 	}
+}
+
+func isRefundTransaction(pp data.PaymentProcessed) bool {
+	return pp.RefundId != ""
 }
