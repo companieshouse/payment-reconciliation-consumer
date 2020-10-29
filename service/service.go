@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"github.com/companieshouse/payment-reconciliation-consumer/dao"
 	"github.com/companieshouse/payment-reconciliation-consumer/keys"
@@ -235,21 +236,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							log.Data{keys.PaymentDetails: paymentDetails, keys.StatusCode: statusCode})
 
 						if isRefundTransaction(pp) {
-							refund := data.RefundResource{}
-							for _, ref := range paymentResponse.Refunds {
-								if ref.RefundId == pp.RefundId {
-									refund = ref
-								}
-							}
-
-							if refund.Status == "success" {
-								// We need to remove sensitive data fields for secure applications.
-								svc.MaskSensitiveFields(&paymentResponse)
-
-								refundResource := svc.getRefundResource(message, paymentResponse, refund, pp.ResourceURI)
-
-								svc.saveRefundResource(message, refundResource)
-							}
+							svc.handleRefundTransaction(paymentResponse, message, pp)
 						} else if paymentDetails.PaymentStatus == "accepted" {
 
 							// We need to remove sensitive data fields for secure applications.
@@ -422,4 +409,36 @@ func (svc *Service) saveRefundResource(
 
 func isRefundTransaction(pp data.PaymentProcessed) bool {
 	return pp.RefundId != ""
+}
+
+func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse, message *sarama.ConsumerMessage, pp data.PaymentProcessed) {
+	refund, err := getRefund(paymentResponse, pp)
+
+	if err != nil {
+		log.Error(err, log.Data{keys.Message: "Failed to handle refund transaction",
+			"data": paymentResponse})
+		_ = svc.HandleError(err, message.Offset, &paymentResponse)
+	}
+
+	if refund != nil {
+		if refund.Status == "success" {
+			// We need to remove sensitive data fields for secure applications.
+			svc.MaskSensitiveFields(&paymentResponse)
+
+			refundResource := svc.getRefundResource(message, paymentResponse, *refund, pp.ResourceURI)
+
+			svc.saveRefundResource(message, refundResource)
+		} else {
+			log.Info("Refund found but is not successful. Skipping reconciliation ", log.Data{"Refund": refund})
+		}
+	}
+}
+
+func getRefund(paymentResponse data.PaymentResponse, pp data.PaymentProcessed) (*data.RefundResource, error) {
+	for _, ref := range paymentResponse.Refunds {
+		if ref.RefundId == pp.RefundId {
+			return &ref, nil
+		}
+	}
+	return nil, errors.New("refund id not found in payment refunds")
 }
