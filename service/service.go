@@ -1,6 +1,7 @@
 package service
 
 import (
+	"errors"
 	"fmt"
 	"github.com/companieshouse/payment-reconciliation-consumer/dao"
 	"github.com/companieshouse/payment-reconciliation-consumer/keys"
@@ -234,8 +235,9 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 						log.Info("Payment Details Response : ",
 							log.Data{keys.PaymentDetails: paymentDetails, keys.StatusCode: statusCode})
 
-						//Filter accepted payments from GovPay
-						if paymentDetails.PaymentStatus == "accepted" {
+						if isRefundTransaction(pp) {
+							svc.handleRefundTransaction(paymentResponse, message, pp)
+						} else if paymentDetails.PaymentStatus == "accepted" {
 
 							// We need to remove sensitive data fields for secure applications.
 							svc.MaskSensitiveFields(&paymentResponse)
@@ -251,7 +253,6 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 							//Add Payment Transactions to the Database
 							svc.saveTransactionResources(message, txns)
-
 						}
 					}
 				}
@@ -363,7 +364,7 @@ func (svc *Service) getTransactionResources(
 	return txns
 }
 
-// Saves Eshu resources to the database
+// Saves Transaction resources to the database
 func (svc *Service) saveTransactionResources(
 	message *sarama.ConsumerMessage,
 	txns []models.PaymentTransactionsResourceDao) {
@@ -376,4 +377,68 @@ func (svc *Service) saveTransactionResources(
 			_ = svc.HandleError(err, message.Offset, &txns)
 		}
 	}
+}
+
+// Creates Refund resources
+func (svc *Service) getRefundResource(
+	message *sarama.ConsumerMessage,
+	paymentResponse data.PaymentResponse,
+	refund data.RefundResource,
+	paymentId string) models.RefundResourceDao {
+
+	refundResource, err := svc.Transformer.GetRefundResource(paymentResponse, refund, paymentId)
+	if err != nil {
+		log.Error(err, log.Data{keys.Offset: message.Offset})
+		_ = svc.HandleError(err, message.Offset, &refund)
+	}
+	return refundResource
+}
+
+// Saves Refund resources to the database
+func (svc *Service) saveRefundResource(
+	message *sarama.ConsumerMessage,
+	refund models.RefundResourceDao) {
+
+	err := svc.DAO.CreateRefundResource(&refund)
+	if err != nil {
+		log.Error(err, log.Data{keys.Message: "failed to create refund request in database",
+			"data": refund})
+		_ = svc.HandleError(err, message.Offset, &refund)
+	}
+}
+
+func isRefundTransaction(pp data.PaymentProcessed) bool {
+	return pp.RefundId != ""
+}
+
+func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse, message *sarama.ConsumerMessage, pp data.PaymentProcessed) {
+	refund, err := getRefund(paymentResponse, pp)
+
+	if err != nil {
+		log.Error(err, log.Data{keys.Message: "Failed to handle refund transaction",
+			"data": paymentResponse})
+		_ = svc.HandleError(err, message.Offset, &paymentResponse)
+	}
+
+	if refund != nil {
+		if refund.Status == "success" {
+			// We need to remove sensitive data fields for secure applications.
+			svc.MaskSensitiveFields(&paymentResponse)
+
+			refundResource := svc.getRefundResource(message, paymentResponse, *refund, pp.ResourceURI)
+
+			svc.saveRefundResource(message, refundResource)
+		} else {
+			log.Info("Refund found but is not successful. Skipping reconciliation ", log.Data{"Refund": refund})
+		}
+	}
+}
+
+func getRefund(paymentResponse data.PaymentResponse, pp data.PaymentProcessed) (*data.RefundResource, error) {
+	for _, ref := range paymentResponse.Refunds {
+		if ref.RefundId == pp.RefundId {
+			return &ref, nil
+		}
+	}
+	return nil, errors.New("refund id not found in payment refunds")
 }

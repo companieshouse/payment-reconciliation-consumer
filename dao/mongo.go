@@ -67,3 +67,15 @@ func (m *Mongo) CreatePaymentTransactionsResource(paymentTransactionsResource *m
 
 	return mongoSession.DB(m.Config.Database).C(m.Config.TransactionsCollection).Insert(paymentTransactionsResource)
 }
+
+// CreateRefundResource will store the refund file details into the database
+func (m *Mongo) CreateRefundResource(refundResource *models.RefundResourceDao) error {
+
+	mongoSession, err := getMongoSession()
+	if err != nil {
+		return err
+	}
+	defer mongoSession.Close()
+
+	return mongoSession.DB(m.Config.Database).C(m.Config.RefundsCollection).Insert(refundResource)
+}

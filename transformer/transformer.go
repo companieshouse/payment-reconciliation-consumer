@@ -4,6 +4,7 @@ import (
 	"github.com/companieshouse/payment-reconciliation-consumer/config"
 	"github.com/companieshouse/payment-reconciliation-consumer/data"
 	"github.com/companieshouse/payment-reconciliation-consumer/models"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -12,6 +13,7 @@ import (
 type Transformer interface {
 	GetEshuResources(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) ([]models.EshuResourceDao, error)
 	GetTransactionResources(payment data.PaymentResponse, paymentDetails data.PaymentDetailsResponse, paymentId string) ([]models.PaymentTransactionsResourceDao, error)
+	GetRefundResource(payment data.PaymentResponse, refund data.RefundResource, paymentId string) (models.RefundResourceDao, error)
 }
 
 // Transform implements the Transformer interface
@@ -84,4 +86,40 @@ func (t *Transform) GetTransactionResources(payment data.PaymentResponse,
 	}
 
 	return paymentTransactionsResources, nil
+}
+
+// GetTransactionResources transforms payment data into payment transaction resource entities
+func (t *Transform) GetRefundResource(payment data.PaymentResponse,
+	refund data.RefundResource,
+	paymentId string) (models.RefundResourceDao, error) {
+
+	refundResource := models.RefundResourceDao{}
+
+	refundDate, err := time.Parse(time.RFC3339Nano, refund.CreatedAt)
+	if err != nil {
+		return refundResource, err
+	}
+
+	productMap, err := config.GetProductMap()
+	if err != nil {
+		return refundResource, err
+	}
+
+	refundResource = models.RefundResourceDao{
+		TransactionID:     "X" + refund.RefundId,
+		TransactionDate:   refundDate,
+		Email:             payment.CreatedBy.Email,
+		PaymentMethod:     payment.PaymentMethod,
+		Amount:            strconv.Itoa(refund.Amount),
+		CompanyNumber:     payment.CompanyNumber,
+		TransactionType:   "Refund",
+		OrderReference:    strings.Replace(payment.Reference, "_", "-", -1),
+		Status:            refund.Status,
+		UserID:            "system",
+		OriginalReference: "X" + paymentId,
+		DisputeDetails:    "",
+		ProductCode:       productMap.Codes[payment.Costs[0].ProductType],
+	}
+
+	return refundResource, nil
 }

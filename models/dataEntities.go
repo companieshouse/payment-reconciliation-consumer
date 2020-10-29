@@ -27,3 +27,20 @@ type PaymentTransactionsResourceDao struct {
 	OriginalReference string    `bson:"original_reference"`
 	DisputeDetails    string    `bson:"dispute_details"`
 }
+
+// RefundResourceDao represents the refund data structure
+type RefundResourceDao struct {
+	TransactionID     string    `bson:"transaction_id"`
+	TransactionDate   time.Time `bson:"transaction_date"`
+	Email             string    `bson:"email"`
+	PaymentMethod     string    `bson:"payment_method"`
+	Amount            string    `bson:"amount"`
+	CompanyNumber     string    `bson:"company_number"`
+	TransactionType   string    `bson:"transaction_type"`
+	OrderReference    string    `bson:"order_reference"`
+	Status            string    `bson:"status"`
+	UserID            string    `bson:"user_id"`
+	OriginalReference string    `bson:"original_reference"`
+	DisputeDetails    string    `bson:"dispute_details"`
+	ProductCode       int       `bson:"product_code"`
+}

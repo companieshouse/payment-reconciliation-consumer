@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/Shopify/sarama"
+	"github.com/companieshouse/chs.go/avro"
 	"github.com/companieshouse/chs.go/kafka/consumer/cluster"
 	"github.com/companieshouse/chs.go/kafka/producer"
 	"github.com/companieshouse/chs.go/log"
@@ -30,6 +31,7 @@ import (
 const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
+const refundID = "refundId"
 const productsLogKey = "products"
 
 var (
@@ -77,11 +79,18 @@ func createMockServiceWithRealTransformer(productMap *config.ProductMap,
 		Topic:          "test",
 	}
 }
+func createMockConsumerWithPaymentMessage(paymentId string) *consumer.GroupConsumer {
+	return createMockConsumerWithMessage(paymentId, "")
+}
 
-func createMockConsumerWithMessage() *consumer.GroupConsumer {
+func createMockConsumerWithRefundMessage(paymentId string, refundId string) *consumer.GroupConsumer {
+	return createMockConsumerWithMessage(paymentId, refundId)
+}
+
+func createMockConsumerWithMessage(paymentId string, refundId string) *consumer.GroupConsumer {
 
 	return &consumer.GroupConsumer{
-		GConsumer: MockConsumer{},
+		GConsumer: MockConsumer{PaymentId: paymentId, RefundId: refundId},
 		Group:     MockGroup{},
 	}
 }
@@ -118,7 +127,11 @@ func createProductMap() (*config.ProductMap, error) {
 
 func getDefaultSchema() string {
 
-	return "{\"type\":\"record\",\"name\":\"payment_processed\",\"namespace\":\"payments\",\"fields\":[{\"name\":\"payment_resource_id\",\"type\":\"string\"}]}"
+	return "{\"type\":\"record\",\"name\":\"payment_processed\",\"namespace\":\"payments\",\"fields\":[{\"name\":\"payment_resource_id\",\"type\":\"string\"}, {\"name\":\"refund_id\",\"type\":\"string\"}]}"
+}
+
+var MockSchema = &avro.Schema{
+	Definition: getDefaultSchema(),
 }
 
 type MockProducer struct {
@@ -129,7 +142,14 @@ func (m MockProducer) Close() error {
 	return nil
 }
 
-type MockConsumer struct{}
+type MockConsumer struct {
+	PaymentId string
+	RefundId  string
+}
+
+func (m MockConsumer) prepareTestKafkaMessage() ([]byte, error) {
+	return MockSchema.Marshal(data.PaymentProcessed{ResourceURI: m.PaymentId, RefundId: m.RefundId})
+}
 
 func (m MockConsumer) Close() error {
 	return nil
@@ -138,9 +158,10 @@ func (m MockConsumer) Close() error {
 func (m MockConsumer) Messages() <-chan *sarama.ConsumerMessage {
 	out := make(chan *sarama.ConsumerMessage)
 
+	bytes, _ := m.prepareTestKafkaMessage()
 	go func() {
 		out <- &sarama.ConsumerMessage{
-			Value: []byte("\"" + paymentResourceID + "\""),
+			Value: bytes,
 		}
 		close(out)
 	}()
@@ -177,7 +198,6 @@ func TestUnitStart(t *testing.T) {
 	})
 
 	Convey("Process of a single Kafka message for a 'penalty' payment", t, func() {
-
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		c := make(chan os.Signal)
@@ -189,7 +209,7 @@ func TestUnitStart(t *testing.T) {
 		svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
 
 		Convey("Given a message is readily available for the service to consume", func() {
-			svc.Consumer = createMockConsumerWithMessage()
+			svc.Consumer = createMockConsumerWithPaymentMessage(paymentResourceID)
 
 			Convey("When the payment corresponding to the message is fetched successfully", func() {
 
@@ -211,10 +231,10 @@ func TestUnitStart(t *testing.T) {
 					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Times(0)
 
 					Convey("And no Eshu resource is ever constructed", func() {
-						mockTransformer.EXPECT().GetEshuResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+						mockTransformer.EXPECT().GetEshuResources(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 						Convey("Nor is a transactions resource created", func() {
-							mockTransformer.EXPECT().GetTransactionResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+							mockTransformer.EXPECT().GetTransactionResources(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
 
 							svc.Start(wg, c)
 						})
@@ -226,6 +246,22 @@ func TestUnitStart(t *testing.T) {
 
 	Convey("Successful process of a single Kafka message for an 'orderable-item' payment", t, func() {
 		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
+	})
+
+	Convey("Successful process of a single Kafka message for a refund", t, func() {
+		processingOfRefundKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
+	})
+
+	Convey("Successful process of a single Kafka message for payment with multiple refunds", t, func() {
+		processingOfRefundKafkaMessageWithMultipleRefundsCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
+	})
+
+	Convey("Unsuccessful process of a single Kafka message for a refund", t, func() {
+		processingOfUnsuccessfulRefundKafkaMessageDoesNotCreateReconciliationRecords(ctrl, productMap, data.OrderableItem)
+	})
+
+	Convey("Unsuccessful process of a single Kafka message for a refund with payment not having correct refund id", t, func() {
+		processingOfUnsuccessfulRefundKafkaMessageWithIncorrectRefundIdDoesNotCreateReconciliationRecords(ctrl, productMap, data.OrderableItem)
 	})
 }
 
@@ -350,7 +386,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			// Given
 			handleErrorCalled = false
 			mockTransformer.EXPECT().
-				GetEshuResource(paymentResponse, details, paymentId).
+				GetEshuResources(paymentResponse, details, paymentId).
 				Return(nil, mockError).
 				Times(1)
 
@@ -381,7 +417,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			// Given
 			handleErrorCalled = false
 			mockTransformer.EXPECT().
-				GetTransactionResource(paymentResponse, details, paymentId).
+				GetTransactionResources(paymentResponse, details, paymentId).
 				Return(nil, mockError).
 				Times(1)
 
@@ -443,7 +479,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 	Convey("Given a message is readily available for the service to consume", func() {
 
-		svc.Consumer = createMockConsumerWithMessage()
+		svc.Consumer = createMockConsumerWithPaymentMessage(paymentResourceID)
 
 		Convey("When the payment corresponding to the message is fetched successfully", func() {
 
@@ -468,7 +504,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 				Convey("Then an Eshu resource is constructed", func() {
 
 					ers := []models.EshuResourceDao{{}}
-					mockTransformer.EXPECT().GetEshuResource(pr, pdr, paymentResourceID).Return(ers, nil).Times(1)
+					mockTransformer.EXPECT().GetEshuResources(pr, pdr, paymentResourceID).Return(ers, nil).Times(1)
 
 					Convey("And committed to the DB successfully", func() {
 						mockDao.EXPECT().CreateEshuResource(&ers[0]).Return(nil).Times(1)
@@ -477,7 +513,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 							ptrs := []models.PaymentTransactionsResourceDao{{}}
 							mockTransformer.EXPECT().
-								GetTransactionResource(pr, pdr, paymentResourceID).Return(ptrs, nil).Times(1)
+								GetTransactionResources(pr, pdr, paymentResourceID).Return(ptrs, nil).Times(1)
 
 							Convey("Which is also committed to the DB successfully", func() {
 
@@ -491,6 +527,290 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 								svc.Start(wg, c)
 							})
 						})
+					})
+				})
+			})
+		})
+	})
+}
+
+// processingOfRefundKafkaMessageCreatesReconciliationRecords asserts that a refund of the class specified
+// will result in a call to get the payment details and the creation of refund reconciliation records.
+func processingOfRefundKafkaMessageCreatesReconciliationRecords(
+	ctrl *gomock.Controller,
+	productMap *config.ProductMap,
+	classOfPayment string) {
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	c := make(chan os.Signal)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+	Convey("Given a message is readily available for the service to consume", func() {
+
+		svc.Consumer = createMockConsumerWithRefundMessage(paymentResourceID, refundID)
+
+		Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+			cost := data.Cost{
+				ClassOfPayment: []string{classOfPayment},
+			}
+
+			pr := data.PaymentResponse{
+				CompanyNumber: "123456",
+				Costs:         []data.Cost{cost},
+				Refunds: []data.RefundResource{{
+					RefundId:          refundID,
+					CreatedAt:         "",
+					Amount:            0,
+					Status:            "success",
+					ExternalRefundUrl: "",
+				}},
+			}
+
+			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+
+			Convey("And the payment details corresponding to the message are fetched successfully", func() {
+
+				pdr := data.PaymentDetailsResponse{
+					PaymentStatus: "accepted",
+				}
+				mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
+
+				Convey("Then a Refund resource is constructed", func() {
+
+					refund := models.RefundResourceDao{}
+					mockTransformer.EXPECT().GetRefundResource(pr, pr.Refunds[0], paymentResourceID).Return(refund, nil).Times(1)
+
+					Convey("And committed to the DB successfully", func() {
+						mockDao.EXPECT().CreateRefundResource(&refund).DoAndReturn(func(ptr *models.RefundResourceDao) error {
+
+							// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
+							endConsumerProcess(svc, c)
+							return nil
+						})
+
+						svc.Start(wg, c)
+					})
+				})
+			})
+		})
+	})
+}
+
+// processingOfRefundKafkaMessageWithMultipleRefundsCreatesReconciliationRecords asserts that a refund of the class specified
+// will result in a call to get the payment details and the creation of refund reconciliation records with proper refund.
+func processingOfRefundKafkaMessageWithMultipleRefundsCreatesReconciliationRecords(
+	ctrl *gomock.Controller,
+	productMap *config.ProductMap,
+	classOfPayment string) {
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	c := make(chan os.Signal)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+	Convey("Given a message is readily available for the service to consume", func() {
+
+		svc.Consumer = createMockConsumerWithRefundMessage(paymentResourceID, refundID)
+
+		Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+			cost := data.Cost{
+				ClassOfPayment: []string{classOfPayment},
+			}
+
+			pr := data.PaymentResponse{
+				CompanyNumber: "123456",
+				Costs:         []data.Cost{cost},
+				Refunds: []data.RefundResource{
+					{
+						RefundId:          refundID,
+						CreatedAt:         "",
+						Amount:            0,
+						Status:            "success",
+						ExternalRefundUrl: "",
+					},
+					{
+						RefundId:          refundID + "1",
+						CreatedAt:         "",
+						Amount:            0,
+						Status:            "failed",
+						ExternalRefundUrl: "",
+					},
+				},
+			}
+
+			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+
+			Convey("And the payment details corresponding to the message are fetched successfully", func() {
+
+				pdr := data.PaymentDetailsResponse{
+					PaymentStatus: "accepted",
+				}
+				mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
+
+				Convey("Then a Refund resource is constructed", func() {
+
+					refund := models.RefundResourceDao{}
+					mockTransformer.EXPECT().GetRefundResource(pr, pr.Refunds[0], paymentResourceID).Return(refund, nil).Times(1)
+
+					Convey("And committed to the DB successfully", func() {
+						mockDao.EXPECT().CreateRefundResource(&refund).DoAndReturn(func(ptr *models.RefundResourceDao) error {
+
+							// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
+							endConsumerProcess(svc, c)
+							return nil
+						})
+
+						svc.Start(wg, c)
+					})
+				})
+			})
+		})
+	})
+}
+
+// processingOfUnsuccessfulRefundKafkaMessageWithIncorrectRefundIdDoesNotCreateReconciliationRecords asserts that
+// a refund of the class specified will not result in a call to get the payment details and will not create the refund
+// reconciliation records.
+func processingOfUnsuccessfulRefundKafkaMessageWithIncorrectRefundIdDoesNotCreateReconciliationRecords(
+	ctrl *gomock.Controller,
+	productMap *config.ProductMap,
+	classOfPayment string) {
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	c := make(chan os.Signal)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+	Convey("Given a message is readily available for the service to consume", func() {
+
+		svc.Consumer = createMockConsumerWithRefundMessage(paymentResourceID, refundID)
+
+		Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+			cost := data.Cost{
+				ClassOfPayment: []string{classOfPayment},
+			}
+
+			pr := data.PaymentResponse{
+				CompanyNumber: "123456",
+				Costs:         []data.Cost{cost},
+				Refunds: []data.RefundResource{{
+					RefundId:          refundID + "x",
+					CreatedAt:         "",
+					Amount:            0,
+					Status:            "failed",
+					ExternalRefundUrl: "",
+				}},
+			}
+
+			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+
+			Convey("And the payment details corresponding to the message are fetched successfully", func() {
+
+				pdr := data.PaymentDetailsResponse{
+					PaymentStatus: "accepted",
+				}
+				mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).DoAndReturn(func(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentDetailsResponse, int, error) {
+					endConsumerProcess(svc, c)
+
+					return pdr, 200, nil
+
+				}).Times(1)
+
+				Convey("Then a Refund resource is not constructed", func() {
+
+					mockTransformer.EXPECT().GetRefundResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+					Convey("And not committed to the DB", func() {
+						mockDao.EXPECT().CreateRefundResource(gomock.Any()).Times(0)
+
+						svc.Start(wg, c)
+					})
+				})
+			})
+		})
+	})
+}
+
+// processingOfUnsuccessfulRefundKafkaMessageDoesNotCreateReconciliationRecords asserts that a refund of the class specified
+// will not result in a call to get the payment details and will not create the refund reconciliation records.
+func processingOfUnsuccessfulRefundKafkaMessageDoesNotCreateReconciliationRecords(
+	ctrl *gomock.Controller,
+	productMap *config.ProductMap,
+	classOfPayment string) {
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	c := make(chan os.Signal)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+	Convey("Given a message is readily available for the service to consume", func() {
+
+		svc.Consumer = createMockConsumerWithRefundMessage(paymentResourceID, refundID)
+
+		Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+			cost := data.Cost{
+				ClassOfPayment: []string{classOfPayment},
+			}
+
+			pr := data.PaymentResponse{
+				CompanyNumber: "123456",
+				Costs:         []data.Cost{cost},
+				Refunds: []data.RefundResource{{
+					RefundId:          refundID,
+					CreatedAt:         "",
+					Amount:            0,
+					Status:            "failed",
+					ExternalRefundUrl: "",
+				}},
+			}
+
+			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+
+			Convey("And the payment details corresponding to the message are fetched successfully", func() {
+
+				pdr := data.PaymentDetailsResponse{
+					PaymentStatus: "accepted",
+				}
+				mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).DoAndReturn(func(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentDetailsResponse, int, error) {
+					endConsumerProcess(svc, c)
+
+					return pdr, 200, nil
+
+				}).Times(1)
+
+				Convey("Then a Refund resource is not constructed", func() {
+
+					mockTransformer.EXPECT().GetRefundResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+					Convey("And not committed to the DB", func() {
+						mockDao.EXPECT().CreateRefundResource(gomock.Any()).Times(0)
+
+						svc.Start(wg, c)
 					})
 				})
 			})
@@ -523,7 +843,7 @@ func processingOfCertifiedCopiesPaymentKafkaMessageCreatesReconciliationRecords(
 
 	Convey("Given a message is readily available for the service to consume", func() {
 
-		svc.Consumer = createMockConsumerWithMessage()
+		svc.Consumer = createMockConsumerWithPaymentMessage(paymentResourceID)
 
 		Convey("When the payment corresponding to the message is fetched successfully", func() {
 
