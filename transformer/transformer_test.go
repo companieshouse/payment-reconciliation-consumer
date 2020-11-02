@@ -95,7 +95,7 @@ func TestUnitErrorHandling(t *testing.T) {
 		So(resourceDao.TransactionID, ShouldEqual, "X"+refundResource.RefundId)
 		So(resourceDao.TransactionType, ShouldEqual, "Refund")
 		So(resourceDao.TransactionDate, ShouldNotBeNil)
-		So(resourceDao.Amount, ShouldEqual, "800")
+		So(resourceDao.Amount, ShouldEqual, "8")
 		So(resourceDao.Email, ShouldEqual, paymentResponse.CreatedBy.Email)
 		So(resourceDao.CompanyNumber, ShouldEqual, paymentResponse.CompanyNumber)
 		So(resourceDao.PaymentMethod, ShouldEqual, paymentResponse.PaymentMethod)
