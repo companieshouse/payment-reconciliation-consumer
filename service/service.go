@@ -219,7 +219,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					log.Info("Payment Response : ",
 						log.Data{keys.PaymentResponse: paymentResponse, keys.StatusCode: statusCode})
 
-					if paymentResponse.IsReconcilable() {
+					if err == nil && paymentResponse.IsReconcilable() {
 
 						//Create GetPayment payment URL
 						getPaymentDetailsURL := svc.PaymentsAPIURL + "/private/payments/" + pp.ResourceURI + "/payment-details"
@@ -236,7 +236,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							log.Data{keys.PaymentDetails: paymentDetails, keys.StatusCode: statusCode})
 
 						if isRefundTransaction(pp) {
-							svc.handleRefundTransaction(paymentResponse, message, pp)
+							svc.handleRefundTransaction(paymentResponse, getPaymentURL, message, pp)
 						} else if paymentDetails.PaymentStatus == "accepted" {
 
 							// We need to remove sensitive data fields for secure applications.
@@ -411,7 +411,7 @@ func isRefundTransaction(pp data.PaymentProcessed) bool {
 	return pp.RefundId != ""
 }
 
-func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse, message *sarama.ConsumerMessage, pp data.PaymentProcessed) {
+func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse, paymentUrl string, message *sarama.ConsumerMessage, pp data.PaymentProcessed) {
 	refund, err := getRefund(paymentResponse, pp)
 
 	if err != nil {
@@ -421,17 +421,37 @@ func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse
 	}
 
 	if refund != nil {
-		if refund.Status == "success" {
-			// We need to remove sensitive data fields for secure applications.
-			svc.MaskSensitiveFields(&paymentResponse)
+		if refund.Status == "submitted" {
+			log.Info("Refund status is submitted. Fetching latest refund status", log.Data{"Refund": refund})
+			var statusCode int
+			refund, statusCode, err = svc.Payments.GetLatestRefundStatus(paymentUrl+"/refunds/"+pp.RefundId, svc.Client, svc.APIKey)
 
-			refundResource := svc.getRefundResource(message, paymentResponse, *refund, pp.ResourceURI)
-
-			svc.saveRefundResource(message, refundResource)
-		} else {
-			log.Info("Refund found but is not successful. Skipping reconciliation ", log.Data{"Refund": refund})
+			if err != nil {
+				log.Error(err, log.Data{keys.Offset: message.Offset, keys.StatusCode: statusCode})
+				_ = svc.HandleError(err, message.Offset, &refund)
+			}
 		}
+		handleRefund(paymentResponse, refund, svc, message, pp, err)
 	}
+}
+
+func handleRefund(paymentResponse data.PaymentResponse, refund *data.RefundResource, svc *Service, message *sarama.ConsumerMessage, pp data.PaymentProcessed, err error) {
+	if refund.Status == "success" {
+		reconcileRefund(paymentResponse, svc, message, refund, pp)
+	} else if refund.Status == "failed" {
+		log.Info("Refund failed. Skipping reconciliation", log.Data{"Refund": refund})
+	} else {
+		_ = svc.HandleError(err, message.Offset, &refund)
+	}
+}
+
+func reconcileRefund(paymentResponse data.PaymentResponse, svc *Service, message *sarama.ConsumerMessage, refund *data.RefundResource, pp data.PaymentProcessed) {
+	// We need to remove sensitive data fields for secure applications.
+	svc.MaskSensitiveFields(&paymentResponse)
+
+	refundResource := svc.getRefundResource(message, paymentResponse, *refund, pp.ResourceURI)
+
+	svc.saveRefundResource(message, refundResource)
 }
 
 func getRefund(paymentResponse data.PaymentResponse, pp data.PaymentProcessed) (*data.RefundResource, error) {

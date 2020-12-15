@@ -25,6 +25,7 @@ func (e *InvalidPaymentAPIResponse) Error() string {
 type Fetcher interface {
 	GetPayment(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentResponse, int, error)
 	GetPaymentDetails(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentDetailsResponse, int, error)
+	GetLatestRefundStatus(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (*data.RefundResource, int, error)
 }
 
 // Fetch implements the the Fetcher interface
@@ -106,4 +107,39 @@ func (impl *Fetch) GetPaymentDetails(paymentAPIURL string, HTTPClient *http.Clie
 	}
 
 	return p, res.StatusCode, nil
+}
+
+func (impl *Fetch) GetLatestRefundStatus(refundEndpointUrl string, HTTPClient *http.Client, apiKey string) (*data.RefundResource, int, error) {
+	var p data.RefundResource
+
+	req, err := http.NewRequest("PATCH", refundEndpointUrl, nil)
+	if err != nil {
+		return &p, 0, err
+	}
+
+	req.SetBasicAuth(apiKey, "")
+	log.Trace("PATCH request to the payment api to update and fetch latest refund information", log.Data{keys.Request: refundEndpointUrl})
+
+	res, err := HTTPClient.Do(req)
+	if err != nil {
+		return &p, 500, err
+	}
+
+	defer res.Body.Close()
+
+	if res.StatusCode != http.StatusOK {
+		return &p, res.StatusCode, &InvalidPaymentAPIResponse{res.StatusCode}
+	}
+
+	body, err := ioutil.ReadAll(res.Body)
+	log.Info("Refund response body", log.Data{keys.RefundDetails: string(body)})
+	if err != nil {
+		return &p, res.StatusCode, err
+	}
+
+	if err := json.Unmarshal(body, &p); err != nil {
+		return &p, res.StatusCode, err
+	}
+
+	return &p, res.StatusCode, nil
 }
