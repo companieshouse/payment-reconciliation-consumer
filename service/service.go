@@ -91,6 +91,7 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 	topicName := consumerTopic
 	if retry != nil {
 		topicName = rh.GetRetryTopicName()
+		log.Info("Retry topic PK: " + topicName)
 	}
 	if cfg.IsErrorConsumer {
 		topicName = rh.GetErrorTopicName()
@@ -179,7 +180,9 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 		}
 
 		if svc.Retry != nil && svc.Retry.ThrottleRate > 0 {
+			log.Info("Sleeping PK")
 			time.Sleep(svc.Retry.ThrottleRate * time.Second)
+			log.Info("Slept PK")
 		}
 
 		select {
@@ -192,6 +195,8 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 			if message != nil {
 				if message.Offset >= svc.InitialOffset {
 					log.Info("Received message from Payment Service. Attempting reconciliation...")
+
+					log.Info("Message topic PK : " + message.Topic)
 
 					// GetPayment the payment session first
 					var pp data.PaymentProcessed
@@ -431,25 +436,37 @@ func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse
 				_ = svc.HandleError(err, message.Offset, &refund)
 			}
 		}
+
+		log.Info("Refund PK", log.Data{"Refund": refund})
+
 		handleRefund(paymentResponse, refund, svc, message, pp, err)
 	}
 }
 
 func handleRefund(paymentResponse data.PaymentResponse, refund *data.RefundResource, svc *Service, message *sarama.ConsumerMessage, pp data.PaymentProcessed, err error) {
+	log.Info("handleRefund function PK")
 	if refund.Status == "success" {
+		log.Info("handleRefund function success PK")
 		reconcileRefund(paymentResponse, svc, message, refund, pp)
 	} else if refund.Status == "failed" {
 		log.Info("Refund failed. Skipping reconciliation", log.Data{"Refund": refund})
 	} else {
-		_ = svc.HandleError(err, message.Offset, &refund)
+		log.Info("handleRefund function else PK: " + refund.Status)
+		err = errors.New("refund status is still submitted, retrying")
+		_ = svc.HandleError(err, message.Offset, &message.Value)
 	}
 }
 
 func reconcileRefund(paymentResponse data.PaymentResponse, svc *Service, message *sarama.ConsumerMessage, refund *data.RefundResource, pp data.PaymentProcessed) {
+	log.Info("reconcileRefund function PK")
+	log.Info("Reconciling refund PK", log.Data{"Refund": refund})
+
 	// We need to remove sensitive data fields for secure applications.
 	svc.MaskSensitiveFields(&paymentResponse)
 
 	refundResource := svc.getRefundResource(message, paymentResponse, *refund, pp.ResourceURI)
+
+	log.Info("Reconciling refund resource PK", log.Data{"Refund": refundResource})
 
 	svc.saveRefundResource(message, refundResource)
 }

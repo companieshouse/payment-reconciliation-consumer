@@ -28,8 +28,8 @@ func main() {
 		return
 	}
 
-	log.Info("intialising payment-reconciliation-consumer service...")
 
+	log.Info("intialising payment-reconciliation-consumer service...")
 	mainChannel := make(chan os.Signal, 1)
 	retryChannel := make(chan os.Signal, 1)
 
@@ -66,6 +66,9 @@ func getRetryService(cfg *config.Config) (*service.Service, error) {
 		time.Duration(cfg.RetryThrottleRate),
 		cfg.MaxRetryAttempts,
 	}
+
+	log.Info("Starting retry service PK")
+	log.Info("Config for retry service PK", log.Data{"Config": cfg})
 
 	retrySvc, err := service.New(cfg.PaymentProcessedTopic, cfg.PaymentReconciliationGroupName, cfg, retry)
 	if err != nil {
