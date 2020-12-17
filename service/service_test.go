@@ -252,12 +252,20 @@ func TestUnitStart(t *testing.T) {
 		processingOfRefundKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
 	})
 
+	Convey("Successful process of a single Kafka message for a refund which was submitted", t, func() {
+		processingOfRefundKafkaMessageWithSubmittedStatusCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
+	})
+
 	Convey("Successful process of a single Kafka message for payment with multiple refunds", t, func() {
 		processingOfRefundKafkaMessageWithMultipleRefundsCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
 	})
 
 	Convey("Unsuccessful process of a single Kafka message for a refund", t, func() {
 		processingOfUnsuccessfulRefundKafkaMessageDoesNotCreateReconciliationRecords(ctrl, productMap, data.OrderableItem)
+	})
+
+	Convey("Unsuccessful process of a single Kafka message for a refund which was submitted", t, func() {
+		processingOfUnsuccessfulRefundKafkaMessageWithSubmittedDoesNotCreateReconciliationRecords(ctrl, productMap, data.OrderableItem)
 	})
 
 	Convey("Unsuccessful process of a single Kafka message for a refund with payment not having correct refund id", t, func() {
@@ -378,7 +386,9 @@ func TestUnitCertifiedCopies(t *testing.T) {
 		message := sarama.ConsumerMessage{Offset: 1}
 		paymentResponse := data.PaymentResponse{}
 		details := data.PaymentDetailsResponse{}
-		paymentId := "paymentResponse ID"
+		pp := data.PaymentProcessed{
+			ResourceURI: "paymentResponse ID",
+		}
 		mockError := errors.New("test-simulated mock error")
 
 		Convey("HandleError invoked to handle error creating eshus", func() {
@@ -386,12 +396,12 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			// Given
 			handleErrorCalled = false
 			mockTransformer.EXPECT().
-				GetEshuResources(paymentResponse, details, paymentId).
+				GetEshuResources(paymentResponse, details, pp.ResourceURI).
 				Return(nil, mockError).
 				Times(1)
 
 			// When
-			svc.getEshuResources(&message, paymentResponse, details, paymentId)
+			svc.getEshuResources(&message, paymentResponse, details, pp)
 
 			// Then
 			So(handleErrorCalled, ShouldEqual, true)
@@ -406,7 +416,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			mockDao.EXPECT().CreateEshuResource(&eshus[0]).Return(mockError).Times(1)
 
 			// When
-			svc.saveEshuResources(&message, eshus)
+			svc.saveEshuResources(&message, eshus, pp)
 
 			// Then
 			So(handleErrorCalled, ShouldEqual, true)
@@ -417,12 +427,12 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			// Given
 			handleErrorCalled = false
 			mockTransformer.EXPECT().
-				GetTransactionResources(paymentResponse, details, paymentId).
+				GetTransactionResources(paymentResponse, details, pp.ResourceURI).
 				Return(nil, mockError).
 				Times(1)
 
 			// When
-			svc.getTransactionResources(&message, paymentResponse, details, paymentId)
+			svc.getTransactionResources(&message, paymentResponse, details, pp)
 
 			// Then
 			So(handleErrorCalled, ShouldEqual, true)
@@ -437,7 +447,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			mockDao.EXPECT().CreatePaymentTransactionsResource(&txns[0]).Return(mockError).Times(1)
 
 			// When
-			svc.saveTransactionResources(&message, txns)
+			svc.saveTransactionResources(&message, txns, pp)
 
 			// Then
 			So(handleErrorCalled, ShouldEqual, true)
@@ -596,6 +606,87 @@ func processingOfRefundKafkaMessageCreatesReconciliationRecords(
 						})
 
 						svc.Start(wg, c)
+					})
+				})
+			})
+		})
+	})
+}
+
+// processingOfRefundKafkaMessageWithSubmittedStatusCreatesReconciliationRecords asserts that a refund of the class specified
+// with submitted status will result in a call to update refund status and get the payment details and the creation of refund reconciliation records.
+func processingOfRefundKafkaMessageWithSubmittedStatusCreatesReconciliationRecords(
+	ctrl *gomock.Controller,
+	productMap *config.ProductMap,
+	classOfPayment string) {
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	c := make(chan os.Signal)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+	Convey("Given a message is readily available for the service to consume", func() {
+
+		svc.Consumer = createMockConsumerWithRefundMessage(paymentResourceID, refundID)
+
+		Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+			cost := data.Cost{
+				ClassOfPayment: []string{classOfPayment},
+			}
+
+			pr := data.PaymentResponse{
+				CompanyNumber: "123456",
+				Costs:         []data.Cost{cost},
+				Refunds: []data.RefundResource{{
+					RefundId:          refundID,
+					CreatedAt:         "",
+					Amount:            0,
+					Status:            "submitted",
+					ExternalRefundUrl: "",
+				}},
+			}
+
+			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+
+			Convey("And the payment details corresponding to the message are fetched successfully", func() {
+
+				pdr := data.PaymentDetailsResponse{
+					PaymentStatus: "accepted",
+				}
+				mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
+
+				Convey("Then a Refund status is fetched", func() {
+					refundResource := data.RefundResource{
+						RefundId:          refundID,
+						CreatedAt:         "",
+						Amount:            0,
+						Status:            "success",
+						ExternalRefundUrl: "",
+					}
+
+					mockPayment.EXPECT().GetLatestRefundStatus(paymentsAPIUrl+"/payments/"+paymentResourceID+"/refunds/"+refundID, svc.Client, apiKey).Return(&refundResource, 200, nil).Times(1)
+
+					Convey("Then a Refund resource is constructed", func() {
+
+						refund := models.RefundResourceDao{}
+						mockTransformer.EXPECT().GetRefundResource(pr, refundResource, paymentResourceID).Return(refund, nil).Times(1)
+
+						Convey("And committed to the DB successfully", func() {
+							mockDao.EXPECT().CreateRefundResource(&refund).DoAndReturn(func(ptr *models.RefundResourceDao) error {
+
+								// Since this is the last thing the service does, we send a signal to kill the consumer process gracefully
+								endConsumerProcess(svc, c)
+								return nil
+							})
+
+							svc.Start(wg, c)
+						})
 					})
 				})
 			})
@@ -811,6 +902,85 @@ func processingOfUnsuccessfulRefundKafkaMessageDoesNotCreateReconciliationRecord
 						mockDao.EXPECT().CreateRefundResource(gomock.Any()).Times(0)
 
 						svc.Start(wg, c)
+					})
+				})
+			})
+		})
+	})
+}
+
+// processingOfUnsuccessfulRefundKafkaMessageDoesNotCreateReconciliationRecords asserts that a refund of the class specified
+// will not result in a call to get the payment details and will not create the refund reconciliation records.
+func processingOfUnsuccessfulRefundKafkaMessageWithSubmittedDoesNotCreateReconciliationRecords(
+	ctrl *gomock.Controller,
+	productMap *config.ProductMap,
+	classOfPayment string) {
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	c := make(chan os.Signal)
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+	Convey("Given a message is readily available for the service to consume", func() {
+
+		svc.Consumer = createMockConsumerWithRefundMessage(paymentResourceID, refundID)
+
+		Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+			cost := data.Cost{
+				ClassOfPayment: []string{classOfPayment},
+			}
+
+			pr := data.PaymentResponse{
+				CompanyNumber: "123456",
+				Costs:         []data.Cost{cost},
+				Refunds: []data.RefundResource{{
+					RefundId:          refundID,
+					CreatedAt:         "",
+					Amount:            0,
+					Status:            "submitted",
+					ExternalRefundUrl: "",
+				}},
+			}
+
+			mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).Return(pr, 200, nil).Times(1)
+
+			Convey("And the payment details corresponding to the message are fetched successfully", func() {
+
+				pdr := data.PaymentDetailsResponse{
+					PaymentStatus: "accepted",
+				}
+				mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Return(pdr, 200, nil).Times(1)
+
+				Convey("Then a Refund status is fetched", func() {
+					refundResource := data.RefundResource{
+						RefundId:          refundID,
+						CreatedAt:         "",
+						Amount:            0,
+						Status:            "failed",
+						ExternalRefundUrl: "",
+					}
+
+					mockPayment.EXPECT().GetLatestRefundStatus(paymentsAPIUrl+"/payments/"+paymentResourceID+"/refunds/"+refundID, svc.Client, apiKey).DoAndReturn(func(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (*data.RefundResource, int, error) {
+						endConsumerProcess(svc, c)
+
+						return &refundResource, 200, nil
+					}).Times(1)
+
+					Convey("Then a Refund resource is not constructed", func() {
+
+						mockTransformer.EXPECT().GetRefundResource(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+						Convey("And not committed to the DB", func() {
+							mockDao.EXPECT().CreateRefundResource(gomock.Any()).Times(0)
+
+							svc.Start(wg, c)
+						})
 					})
 				})
 			})
