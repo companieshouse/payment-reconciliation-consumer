@@ -386,7 +386,9 @@ func TestUnitCertifiedCopies(t *testing.T) {
 		message := sarama.ConsumerMessage{Offset: 1}
 		paymentResponse := data.PaymentResponse{}
 		details := data.PaymentDetailsResponse{}
-		paymentId := "paymentResponse ID"
+		pp := data.PaymentProcessed{
+			ResourceURI: "paymentResponse ID",
+		}
 		mockError := errors.New("test-simulated mock error")
 
 		Convey("HandleError invoked to handle error creating eshus", func() {
@@ -394,12 +396,12 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			// Given
 			handleErrorCalled = false
 			mockTransformer.EXPECT().
-				GetEshuResources(paymentResponse, details, paymentId).
+				GetEshuResources(paymentResponse, details, pp.ResourceURI).
 				Return(nil, mockError).
 				Times(1)
 
 			// When
-			svc.getEshuResources(&message, paymentResponse, details, paymentId)
+			svc.getEshuResources(&message, paymentResponse, details, pp)
 
 			// Then
 			So(handleErrorCalled, ShouldEqual, true)
@@ -414,7 +416,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			mockDao.EXPECT().CreateEshuResource(&eshus[0]).Return(mockError).Times(1)
 
 			// When
-			svc.saveEshuResources(&message, eshus)
+			svc.saveEshuResources(&message, eshus, pp)
 
 			// Then
 			So(handleErrorCalled, ShouldEqual, true)
@@ -425,12 +427,12 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			// Given
 			handleErrorCalled = false
 			mockTransformer.EXPECT().
-				GetTransactionResources(paymentResponse, details, paymentId).
+				GetTransactionResources(paymentResponse, details, pp.ResourceURI).
 				Return(nil, mockError).
 				Times(1)
 
 			// When
-			svc.getTransactionResources(&message, paymentResponse, details, paymentId)
+			svc.getTransactionResources(&message, paymentResponse, details, pp)
 
 			// Then
 			So(handleErrorCalled, ShouldEqual, true)
@@ -445,7 +447,7 @@ func TestUnitCertifiedCopies(t *testing.T) {
 			mockDao.EXPECT().CreatePaymentTransactionsResource(&txns[0]).Return(mockError).Times(1)
 
 			// When
-			svc.saveTransactionResources(&message, txns)
+			svc.saveTransactionResources(&message, txns, pp)
 
 			// Then
 			So(handleErrorCalled, ShouldEqual, true)

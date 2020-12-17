@@ -214,7 +214,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					paymentResponse, statusCode, err := svc.Payments.GetPayment(getPaymentURL, svc.Client, svc.APIKey)
 					if err != nil {
 						log.Error(err, log.Data{keys.Offset: message.Offset})
-						_ = svc.HandleError(err, message.Offset, &paymentResponse)
+						_ = svc.HandleError(err, message.Offset, &pp)
 					}
 					log.Info("Payment Response : ",
 						log.Data{keys.PaymentResponse: paymentResponse, keys.StatusCode: statusCode})
@@ -230,12 +230,13 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 						if err != nil {
 							log.Error(err, log.Data{keys.Offset: message.Offset})
-							_ = svc.HandleError(err, message.Offset, &paymentDetails)
+							_ = svc.HandleError(err, message.Offset, &pp)
 						}
 						log.Info("Payment Details Response : ",
 							log.Data{keys.PaymentDetails: paymentDetails, keys.StatusCode: statusCode})
 
 						if isRefundTransaction(pp) {
+							log.Info("Handling refund transaction")
 							svc.handleRefundTransaction(paymentResponse, getPaymentURL, message, pp)
 						} else if paymentDetails.PaymentStatus == "accepted" {
 
@@ -243,16 +244,16 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 							svc.MaskSensitiveFields(&paymentResponse)
 
 							// Get Eshu resources
-							eshus := svc.getEshuResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
+							eshus := svc.getEshuResources(message, paymentResponse, paymentDetails, pp)
 
 							//Add Eshu objects to the Database
-							svc.saveEshuResources(message, eshus)
+							svc.saveEshuResources(message, eshus, pp)
 
 							//Build Payment Transaction database objects
-							txns := svc.getTransactionResources(message, paymentResponse, paymentDetails, pp.ResourceURI)
+							txns := svc.getTransactionResources(message, paymentResponse, paymentDetails, pp)
 
 							//Add Payment Transactions to the Database
-							svc.saveTransactionResources(message, txns)
+							svc.saveTransactionResources(message, txns, pp)
 						}
 					}
 				}
@@ -326,25 +327,25 @@ func (svc *Service) getEshuResources(
 	message *sarama.ConsumerMessage,
 	paymentResponse data.PaymentResponse,
 	paymentDetailsResponse data.PaymentDetailsResponse,
-	paymentId string) []models.EshuResourceDao {
+	pp data.PaymentProcessed) []models.EshuResourceDao {
 
-	eshus, err := svc.Transformer.GetEshuResources(paymentResponse, paymentDetailsResponse, paymentId)
+	eshus, err := svc.Transformer.GetEshuResources(paymentResponse, paymentDetailsResponse, pp.ResourceURI)
 	if err != nil {
 		log.Error(err, log.Data{keys.Offset: message.Offset})
-		_ = svc.HandleError(err, message.Offset, &paymentDetailsResponse)
+		_ = svc.HandleError(err, message.Offset, &pp)
 	}
 	return eshus
 }
 
 // Saves Eshu resources to the Database
-func (svc *Service) saveEshuResources(message *sarama.ConsumerMessage, eshus []models.EshuResourceDao) {
+func (svc *Service) saveEshuResources(message *sarama.ConsumerMessage, eshus []models.EshuResourceDao, pp data.PaymentProcessed) {
 
 	for _, eshu := range eshus {
 		err := svc.DAO.CreateEshuResource(&eshu)
 		if err != nil {
 			log.Error(err, log.Data{keys.Message: "failed to create eshu request in database",
 				"data": eshu})
-			_ = svc.HandleError(err, message.Offset, &eshus)
+			_ = svc.HandleError(err, message.Offset, &pp)
 		}
 	}
 }
@@ -354,12 +355,12 @@ func (svc *Service) getTransactionResources(
 	message *sarama.ConsumerMessage,
 	paymentResponse data.PaymentResponse,
 	paymentDetailsResponse data.PaymentDetailsResponse,
-	paymentId string) []models.PaymentTransactionsResourceDao {
+	pp data.PaymentProcessed) []models.PaymentTransactionsResourceDao {
 
-	txns, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetailsResponse, paymentId)
+	txns, err := svc.Transformer.GetTransactionResources(paymentResponse, paymentDetailsResponse, pp.ResourceURI)
 	if err != nil {
 		log.Error(err, log.Data{keys.Offset: message.Offset})
-		_ = svc.HandleError(err, message.Offset, &paymentDetailsResponse)
+		_ = svc.HandleError(err, message.Offset, &pp)
 	}
 	return txns
 }
@@ -367,14 +368,15 @@ func (svc *Service) getTransactionResources(
 // Saves Transaction resources to the database
 func (svc *Service) saveTransactionResources(
 	message *sarama.ConsumerMessage,
-	txns []models.PaymentTransactionsResourceDao) {
+	txns []models.PaymentTransactionsResourceDao,
+	pp data.PaymentProcessed) {
 
 	for _, txn := range txns {
 		err := svc.DAO.CreatePaymentTransactionsResource(&txn)
 		if err != nil {
 			log.Error(err, log.Data{keys.Message: "failed to create production request in database",
 				"data": txn})
-			_ = svc.HandleError(err, message.Offset, &txns)
+			_ = svc.HandleError(err, message.Offset, &pp)
 		}
 	}
 }
@@ -384,12 +386,12 @@ func (svc *Service) getRefundResource(
 	message *sarama.ConsumerMessage,
 	paymentResponse data.PaymentResponse,
 	refund data.RefundResource,
-	paymentId string) models.RefundResourceDao {
+	pp data.PaymentProcessed) models.RefundResourceDao {
 
-	refundResource, err := svc.Transformer.GetRefundResource(paymentResponse, refund, paymentId)
+	refundResource, err := svc.Transformer.GetRefundResource(paymentResponse, refund, pp.ResourceURI)
 	if err != nil {
 		log.Error(err, log.Data{keys.Offset: message.Offset})
-		_ = svc.HandleError(err, message.Offset, &refund)
+		_ = svc.HandleError(err, message.Offset, &pp)
 	}
 	return refundResource
 }
@@ -397,13 +399,14 @@ func (svc *Service) getRefundResource(
 // Saves Refund resources to the database
 func (svc *Service) saveRefundResource(
 	message *sarama.ConsumerMessage,
-	refund models.RefundResourceDao) {
+	refund models.RefundResourceDao,
+	pp data.PaymentProcessed) {
 
 	err := svc.DAO.CreateRefundResource(&refund)
 	if err != nil {
 		log.Error(err, log.Data{keys.Message: "failed to create refund request in database",
 			"data": refund})
-		_ = svc.HandleError(err, message.Offset, &refund)
+		_ = svc.HandleError(err, message.Offset, &pp)
 	}
 }
 
@@ -417,7 +420,7 @@ func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse
 	if err != nil {
 		log.Error(err, log.Data{keys.Message: "Failed to handle refund transaction",
 			"data": paymentResponse})
-		_ = svc.HandleError(err, message.Offset, &paymentResponse)
+		_ = svc.HandleError(err, message.Offset, &pp)
 	}
 
 	if refund != nil {
@@ -428,7 +431,7 @@ func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse
 
 			if err != nil {
 				log.Error(err, log.Data{keys.Offset: message.Offset, keys.StatusCode: statusCode})
-				_ = svc.HandleError(err, message.Offset, &refund)
+				_ = svc.HandleError(err, message.Offset, &pp)
 			}
 		}
 		handleRefund(paymentResponse, refund, svc, message, pp, err)
@@ -437,11 +440,13 @@ func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse
 
 func handleRefund(paymentResponse data.PaymentResponse, refund *data.RefundResource, svc *Service, message *sarama.ConsumerMessage, pp data.PaymentProcessed, err error) {
 	if refund.Status == "success" {
+		log.Info("Refund successful. Reconciling...", log.Data{"Refund": refund})
 		reconcileRefund(paymentResponse, svc, message, refund, pp)
 	} else if refund.Status == "failed" {
 		log.Info("Refund failed. Skipping reconciliation", log.Data{"Refund": refund})
 	} else {
-		_ = svc.HandleError(err, message.Offset, &refund)
+		err = errors.New("status is still submitted, retrying")
+		_ = svc.HandleError(err, message.Offset, &pp)
 	}
 }
 
@@ -449,9 +454,9 @@ func reconcileRefund(paymentResponse data.PaymentResponse, svc *Service, message
 	// We need to remove sensitive data fields for secure applications.
 	svc.MaskSensitiveFields(&paymentResponse)
 
-	refundResource := svc.getRefundResource(message, paymentResponse, *refund, pp.ResourceURI)
+	refundResource := svc.getRefundResource(message, paymentResponse, *refund, pp)
 
-	svc.saveRefundResource(message, refundResource)
+	svc.saveRefundResource(message, refundResource, pp)
 }
 
 func getRefund(paymentResponse data.PaymentResponse, pp data.PaymentProcessed) (*data.RefundResource, error) {
