@@ -33,16 +33,6 @@ type ProductMap struct {
 	Codes map[string]int `yaml:"product_code"`
 }
 
-// ServiceConfig returns a ServiceConfig interface for Config
-func (c Config) ServiceConfig() ServiceConfig {
-	return ServiceConfig{c}
-}
-
-// ServiceConfig wraps Config to implement service.Config
-type ServiceConfig struct {
-	Config
-}
-
 // Namespace implements service.Config.Namespace
 func (c *Config) Namespace() string {
 	return "payment-reconciliation-consumer"
