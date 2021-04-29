@@ -26,6 +26,8 @@ type Config struct {
 	TransactionsCollection         string      `env:"MONGODB_PAYMENT_REC_TRANSACTIONS_COLLECTION"   flag:"mongodb-payment-rec-transactions-collection"  flagDesc:"MongoDB collection for payment transactions data"`
 	ProductsCollection             string      `env:"MONGODB_PAYMENT_REC_PRODUCTS_COLLECTION"       flag:"mongodb-payment-rec-products-collection"      flagDesc:"MongoDB collection for payment products data"`
 	RefundsCollection              string      `env:"MONGODB_PAYMENT_REC_REFUNDS_COLLECTION"        flag:"mongodb-payment-rec-refunds-collection"       flagDesc:"MongoDB collection for refunds data"`
+	SkipGoneResource          	   bool        `env:"SKIP_GONE_RESOURCE"                            flag:"skip-gone-resource"                           flagDesc:"Boolean which indicates whether messages with resources that return 410 should be skipped"`
+	SkipGoneResourceId        	   string      `env:"SKIP_GONE_RESOURCE_ID"                         flag:"skip-gone-resource-id"                        flagDesc:"Set this if you only want to skip a specific message with a resource returning a 410 - requires SKIP_GONE_RESOURCE=true"`
 }
 
 // ProductMap contains a map of product codes

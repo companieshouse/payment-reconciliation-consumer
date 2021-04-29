@@ -2,6 +2,7 @@ package payment
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/companieshouse/payment-reconciliation-consumer/data"
 	"github.com/companieshouse/payment-reconciliation-consumer/keys"
@@ -10,6 +11,9 @@ import (
 
 	"github.com/companieshouse/chs.go/log"
 )
+
+// ErrResourceGone is a sentinel error used when payment resources have been intentionally removed
+var ErrResourceGone = errors.New(`The requested resource for payment is gone - status [410]`)
 
 // InvalidPaymentAPIResponse is returned when an invalid status is returned from the payments api
 type InvalidPaymentAPIResponse struct {
@@ -57,6 +61,9 @@ func (impl *Fetch) GetPayment(paymentAPIURL string, HTTPClient *http.Client, api
 	defer res.Body.Close()
 
 	if res.StatusCode != http.StatusOK {
+		if res.StatusCode == http.StatusGone {
+			return p, res.StatusCode, ErrResourceGone
+		}
 		return p, res.StatusCode, &InvalidPaymentAPIResponse{res.StatusCode}
 	}
 
