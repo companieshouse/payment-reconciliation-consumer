@@ -27,25 +27,27 @@ import (
 
 // Service represents service config for payment-reconciliation-consumer
 type Service struct {
-	Consumer        *consumer.GroupConsumer
-	Producer        *producer.Producer
-	PpSchema        string
-	Client          *http.Client
-	InitialOffset   int64
-	HandleError     func(err error, offset int64, str interface{}) error
-	Topic           string
-	Retry           *resilience.ServiceRetry
-	IsErrorConsumer bool
-	BrokerAddr      []string
-	APIKey          string
-	PaymentsAPIURL  string
-	DAO             dao.DAO
-	TranCollection  string
-	ProdCollection  string
-	ProductMap      *config.ProductMap
-	Payments        payment.Fetcher
-	Transformer     transformer.Transformer
-	StopAtOffset    int64
+	Consumer           *consumer.GroupConsumer
+	Producer           *producer.Producer
+	PpSchema           string
+	Client             *http.Client
+	InitialOffset      int64
+	HandleError        func(err error, offset int64, str interface{}) error
+	Topic              string
+	Retry              *resilience.ServiceRetry
+	IsErrorConsumer    bool
+	BrokerAddr         []string
+	APIKey             string
+	PaymentsAPIURL     string
+	DAO                dao.DAO
+	TranCollection     string
+	ProdCollection     string
+	ProductMap         *config.ProductMap
+	Payments           payment.Fetcher
+	Transformer        transformer.Transformer
+	StopAtOffset       int64
+	SkipGoneResource   bool
+	SkipGoneResourceId string
 }
 
 // New creates a new instance of service with a given consumerGroup name,
@@ -133,24 +135,26 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 	}
 
 	return &Service{
-		Consumer:        c,
-		Producer:        p,
-		PpSchema:        ppSchema,
-		Client:          &http.Client{},
-		HandleError:     rh.HandleError,
-		Topic:           topicName,
-		Retry:           retry,
-		IsErrorConsumer: cfg.IsErrorConsumer,
-		BrokerAddr:      cfg.BrokerAddr,
-		APIKey:          cfg.ChsAPIKey,
-		PaymentsAPIURL:  cfg.PaymentsAPIURL,
-		DAO:             dao.New(cfg),
-		TranCollection:  cfg.TransactionsCollection,
-		ProdCollection:  cfg.ProductsCollection,
-		ProductMap:      productMap,
-		Payments:        payment.New(),
-		Transformer:     transformer.New(),
-		StopAtOffset:    stopAtOffset,
+		Consumer:           c,
+		Producer:           p,
+		PpSchema:           ppSchema,
+		Client:             &http.Client{},
+		HandleError:        rh.HandleError,
+		Topic:              topicName,
+		Retry:              retry,
+		IsErrorConsumer:    cfg.IsErrorConsumer,
+		BrokerAddr:         cfg.BrokerAddr,
+		APIKey:             cfg.ChsAPIKey,
+		PaymentsAPIURL:     cfg.PaymentsAPIURL,
+		DAO:                dao.New(cfg),
+		TranCollection:     cfg.TransactionsCollection,
+		ProdCollection:     cfg.ProductsCollection,
+		ProductMap:         productMap,
+		Payments:           payment.New(),
+		Transformer:        transformer.New(),
+		StopAtOffset:       stopAtOffset,
+		SkipGoneResource:   cfg.SkipGoneResource,
+		SkipGoneResourceId: cfg.SkipGoneResourceId,
 	}, nil
 
 }
@@ -202,7 +206,10 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					err = paymentProcessedSchema.Unmarshal(message.Value, &pp)
 					if err != nil {
 						log.Error(err, log.Data{keys.Offset: message.Offset})
-						_ = svc.HandleError(err, message.Offset, &message.Value)
+						retryErr := svc.HandleError(err, message.Offset, &pp)
+						if retryErr != nil {
+							log.Error(retryErr, log.Data{keys.Offset: message.Offset, keys.Topic: message.Topic})
+						}
 						continue
 					}
 
@@ -213,8 +220,15 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					//Call GetPayment payment session from payments API
 					paymentResponse, statusCode, err := svc.Payments.GetPayment(getPaymentURL, svc.Client, svc.APIKey)
 					if err != nil {
-						log.Error(err, log.Data{keys.Offset: message.Offset})
-						_ = svc.HandleError(err, message.Offset, &pp)
+						log.Error(err, log.Data{keys.Offset: message.Offset, keys.Topic: message.Topic})
+						skipGoneResource := svc.skipGoneResource(err, pp.ResourceURI, message)
+						if skipGoneResource {
+							continue
+						}
+						retryErr := svc.HandleError(err, message.Offset, &pp)
+						if retryErr != nil {
+							log.Error(retryErr, log.Data{keys.Offset: message.Offset, keys.Topic: message.Topic})
+						}
 					}
 					log.Info("Payment Response : ",
 						log.Data{keys.PaymentResponse: paymentResponse, keys.StatusCode: statusCode})
@@ -230,7 +244,10 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 
 						if err != nil {
 							log.Error(err, log.Data{keys.Offset: message.Offset})
-							_ = svc.HandleError(err, message.Offset, &pp)
+							retryErr := svc.HandleError(err, message.Offset, &pp)
+							if retryErr != nil {
+								log.Error(retryErr, log.Data{keys.Offset: message.Offset, keys.Topic: message.Topic})
+							}
 						}
 						log.Info("Payment Details Response : ",
 							log.Data{keys.PaymentDetails: paymentDetails, keys.StatusCode: statusCode})
@@ -466,4 +483,28 @@ func getRefund(paymentResponse data.PaymentResponse, pp data.PaymentProcessed) (
 		}
 	}
 	return nil, errors.New("refund id not found in payment refunds")
+}
+
+func (svc *Service) skipGoneResource(err error, paymentId string, message *sarama.ConsumerMessage) bool {
+	if err == payment.ErrResourceGone {
+		log.Info("Resource could not be found for payment: ["+paymentId+"]. Checking if this payment should be skipped.", log.Data{keys.Offset: message.Offset, keys.Topic: message.Topic})
+		return svc.checkSkipGoneResource(paymentId, message)
+	}
+	return false
+}
+
+func (svc *Service) checkSkipGoneResource(paymentId string, message *sarama.ConsumerMessage) bool {
+	logData := log.Data{"payment_id": paymentId, "skip_gone_resource": svc.SkipGoneResource, "skip_gone_resource_id": svc.SkipGoneResourceId, keys.Offset: message.Offset, keys.Topic: message.Topic}
+
+	if svc.SkipGoneResource {
+		log.Info("SKIP_GONE_RESOURCE is true - checking if message should be skipped for Payment ID ["+paymentId+"]", logData)
+		if svc.SkipGoneResourceId != "" && svc.SkipGoneResourceId != paymentId {
+			log.Info("SKIP_GONE_RESOURCE_ID ["+svc.SkipGoneResourceId+"] does not match Payment ID ["+paymentId+"] - not skipping message", logData)
+			return false
+		}
+		log.Info("Message for Payment ID ["+paymentId+"] meets criteria and will be skipped", logData)
+		return true
+	}
+	log.Info("SKIP_GONE_RESOURCE is false - not skipping message for Payment ID ["+paymentId+"]", logData)
+	return false
 }

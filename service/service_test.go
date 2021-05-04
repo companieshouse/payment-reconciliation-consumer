@@ -31,6 +31,7 @@ import (
 const paymentsAPIUrl = "paymentsAPIUrl"
 const apiKey = "apiKey"
 const paymentResourceID = "paymentResourceID"
+const differentPaymentResourceID = "differentPaymentResourceID"
 const refundID = "refundId"
 const productsLogKey = "products"
 
@@ -454,6 +455,62 @@ func TestUnitCertifiedCopies(t *testing.T) {
 		})
 	})
 
+}
+
+func TestUnitCheckSkipGoneResource(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	productMap, err := createProductMap()
+	if err != nil {
+		log.Error(fmt.Errorf("error initialising productMap: %s", err), nil)
+	}
+
+	message := &sarama.ConsumerMessage{Offset: 1, Topic: "test topic"}
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+	Convey("Given SkipGoneResource is true", t, func() {
+		svc.SkipGoneResource = true
+		Convey("When SkipGoneResourceId is empty", func() {
+			svc.SkipGoneResourceId = ""
+			Convey("Then checkSkipGoneResource should return true", func() {
+				So(svc.checkSkipGoneResource(paymentResourceID, message), ShouldEqual, true)
+			})
+		})
+		Convey("When SkipGoneResourceId is set", func() {
+			svc.SkipGoneResourceId = paymentResourceID
+			Convey("Then checkSkipGoneResource should return true when the payment ids match", func() {
+				So(svc.checkSkipGoneResource(paymentResourceID, message), ShouldEqual, true)
+			})
+			Convey("Then checkSkipGoneResource should return false when the payment ids do not match", func() {
+				So(svc.checkSkipGoneResource(differentPaymentResourceID, message), ShouldEqual, false)
+			})
+		})
+	})
+
+	Convey("Given SkipGoneResource is false", t, func() {
+		svc.SkipGoneResource = false
+		Convey("When SkipGoneResourceId is empty", func() {
+			svc.SkipGoneResourceId = ""
+			Convey("Then checkSkipGoneResource should return false", func() {
+				So(svc.checkSkipGoneResource(paymentResourceID, message), ShouldEqual, false)
+			})
+		})
+		Convey("When SkipGoneResourceId is set", func() {
+			svc.SkipGoneResourceId = paymentResourceID
+			Convey("Then checkSkipGoneResource should return false when the payment ids match", func() {
+				So(svc.checkSkipGoneResource(paymentResourceID, message), ShouldEqual, false)
+			})
+			Convey("Then checkSkipGoneResource should return false when the payment ids do not match", func() {
+				So(svc.checkSkipGoneResource(differentPaymentResourceID, message), ShouldEqual, false)
+			})
+		})
+	})
 }
 
 // endConsumerProcess facilitates service termination
