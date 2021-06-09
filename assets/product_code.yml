@@ -22,4 +22,5 @@ product_code:
   missing-image-delivery-misc: 44019
   efs-slpcs01: 40101
   efs-sqpcs01: 40102
+  efs-sh19: 40103
   sr01: 16033
