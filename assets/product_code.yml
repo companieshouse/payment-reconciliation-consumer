@@ -23,4 +23,5 @@ product_code:
   efs-slpcs01: 40101
   efs-sqpcs01: 40102
   efs-sh19: 40103
+  efs-sh19-same-day: 40107
   sr01: 16033
