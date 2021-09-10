@@ -552,6 +552,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
+				ProductType: "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -626,6 +627,7 @@ func processingOfRefundKafkaMessageCreatesReconciliationRecords(
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
+				ProductType: "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -695,6 +697,7 @@ func processingOfRefundKafkaMessageWithSubmittedStatusCreatesReconciliationRecor
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
+				ProductType: "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -776,6 +779,7 @@ func processingOfRefundKafkaMessageWithMultipleRefundsCreatesReconciliationRecor
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
+				ProductType: "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -855,6 +859,7 @@ func processingOfUnsuccessfulRefundKafkaMessageWithIncorrectRefundIdDoesNotCreat
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
+				ProductType: "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -923,6 +928,7 @@ func processingOfUnsuccessfulRefundKafkaMessageDoesNotCreateReconciliationRecord
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
+				ProductType: "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -991,6 +997,7 @@ func processingOfUnsuccessfulRefundKafkaMessageWithSubmittedDoesNotCreateReconci
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
+				ProductType: "certificate",
 			}
 
 			pr := data.PaymentResponse{

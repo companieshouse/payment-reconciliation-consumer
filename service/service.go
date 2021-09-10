@@ -3,20 +3,21 @@ package service
 import (
 	"errors"
 	"fmt"
-	"github.com/companieshouse/payment-reconciliation-consumer/dao"
-	"github.com/companieshouse/payment-reconciliation-consumer/keys"
-	"github.com/companieshouse/payment-reconciliation-consumer/models"
-	"github.com/companieshouse/payment-reconciliation-consumer/transformer"
 	"net/http"
 	"os"
 	"sync"
 	"time"
 
+	"github.com/companieshouse/payment-reconciliation-consumer/dao"
+	"github.com/companieshouse/payment-reconciliation-consumer/keys"
+	"github.com/companieshouse/payment-reconciliation-consumer/models"
+	"github.com/companieshouse/payment-reconciliation-consumer/transformer"
+
 	"github.com/Shopify/sarama"
 	"github.com/companieshouse/chs.go/avro"
 	"github.com/companieshouse/chs.go/avro/schema"
 	"github.com/companieshouse/chs.go/kafka/client"
-	"github.com/companieshouse/chs.go/kafka/consumer/cluster"
+	consumer "github.com/companieshouse/chs.go/kafka/consumer/cluster"
 	"github.com/companieshouse/chs.go/kafka/producer"
 	"github.com/companieshouse/chs.go/kafka/resilience"
 	"github.com/companieshouse/chs.go/log"
@@ -233,7 +234,7 @@ func (svc *Service) Start(wg *sync.WaitGroup, c chan os.Signal) {
 					log.Info("Payment Response : ",
 						log.Data{keys.PaymentResponse: paymentResponse, keys.StatusCode: statusCode})
 
-					if err == nil && paymentResponse.IsReconcilable() {
+					if err == nil && paymentResponse.IsReconcilable(svc.ProductMap) {
 
 						//Create GetPayment payment URL
 						getPaymentDetailsURL := svc.PaymentsAPIURL + "/private/payments/" + pp.ResourceURI + "/payment-details"

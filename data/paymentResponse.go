@@ -2,11 +2,15 @@ package data
 
 import (
 	"time"
+
+	"github.com/companieshouse/chs.go/log"
+	"github.com/companieshouse/payment-reconciliation-consumer/config"
 )
 
 const DataMaintenance = "data-maintenance"
 const OrderableItem = "orderable-item"
 const Penalty = "penalty"
+const Legacy = "legacy"
 
 // PaymentResponse represents a response from the payment service GET payment endpoint
 type PaymentResponse struct {
@@ -62,7 +66,26 @@ type RefundResource struct {
 }
 
 // Indicates whether the payment is reconcilable or not.
-func (payment PaymentResponse) IsReconcilable() bool {
-	return (payment.Costs[0].ClassOfPayment[0] == DataMaintenance ||
-		payment.Costs[0].ClassOfPayment[0] == OrderableItem)
+func (payment PaymentResponse) IsReconcilable(productMap *config.ProductMap) bool {
+
+	classOfPayment := payment.Costs[0].ClassOfPayment[0]
+
+	// only reconcile these payment classes, others like penalty and legacy reconcile elsewhere
+	if (classOfPayment == DataMaintenance || classOfPayment == OrderableItem) {
+
+		productType := payment.Costs[0].ProductType
+		productCode := productMap.Codes[productType]
+
+		// if product code is zero there is no mapping for the product type so the payment is not reconcilable in CHS
+		if (productCode == 0) {
+			log.Info("Not reconcilable due to product code", log.Data{"reference":payment.Reference, "class_of_payment": classOfPayment, "product_type": productType, "product_code": productCode})
+			return false
+		}
+
+		log.Info("Reconcilable payment", log.Data{"reference":payment.Reference, "class_of_payment": classOfPayment, "product_type": productType, "product_code": productCode})
+		return true
+	}
+
+	log.Info("Not reconcilable due to class of payment", log.Data{"reference":payment.Reference, "class_of_payment": classOfPayment})
+	return false
 }
