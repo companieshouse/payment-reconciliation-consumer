@@ -35,14 +35,19 @@ func TestUnitIsReconcilable(t *testing.T) {
 		Equal(t, penalty.IsReconcilable(productMap), false, "penalty payments should not be reconcilable")
 	})
 
-	Convey("penalty payments are not reconcilable", t, func() {
+	Convey("legacy payments are not reconcilable", t, func() {
 		penalty := createPaymentResponse(Legacy, "webfiling")
 		Equal(t, penalty.IsReconcilable(productMap), false, "legacy payments should not be reconcilable")
 	})
 
-	Convey("penalty payments are not reconcilable", t, func() {
+	Convey("extractives payments are not reconcilable", t, func() {
 		penalty := createPaymentResponse(DataMaintenance, "extractives")
 		Equal(t, penalty.IsReconcilable(productMap), false, "extractives payments should not be reconcilable")
+	})
+
+	Convey("empty product type payments are not reconcilable", t, func() {
+		penalty := createPaymentResponse(DataMaintenance, "")
+		Equal(t, penalty.IsReconcilable(productMap), false, "empty product type payment should not be reconcilable")
 	})
 
 }
