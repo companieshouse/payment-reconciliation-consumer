@@ -10,6 +10,7 @@ import (
 const DataMaintenance = "data-maintenance"
 const OrderableItem = "orderable-item"
 const Penalty = "penalty"
+const Legacy = "legacy"
 
 // PaymentResponse represents a response from the payment service GET payment endpoint
 type PaymentResponse struct {
@@ -66,8 +67,6 @@ type RefundResource struct {
 
 // Indicates whether the payment is reconcilable or not.
 func (payment PaymentResponse) IsReconcilable(productMap *config.ProductMap) bool {
-	// return (payment.Costs[0].ClassOfPayment[0] == DataMaintenance ||
-	// 	payment.Costs[0].ClassOfPayment[0] == OrderableItem)
 
 	classOfPayment := payment.Costs[0].ClassOfPayment[0]
 
