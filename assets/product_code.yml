@@ -25,3 +25,5 @@ product_code:
   efs-sh19: 40103
   efs-sh19-same-day: 40107
   sr01: 16033
+  confirmation_statement_service_cs01: 15000
+  confirmation_statement_service_llcs01: 15003
