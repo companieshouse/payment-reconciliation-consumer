@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/companieshouse/payment-reconciliation-consumer/dao"
 	gologger "log"
 	"os"
 	"os/signal"
@@ -29,6 +30,8 @@ func main() {
 	}
 
 	log.Info("intialising payment-reconciliation-consumer service...")
+
+	paymentRecSvc := dao.NewPaymentReconciliationDAOService(cfg)
 
 	mainChannel := make(chan os.Signal, 1)
 	retryChannel := make(chan os.Signal, 1)

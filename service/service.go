@@ -147,7 +147,7 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 		BrokerAddr:         cfg.BrokerAddr,
 		APIKey:             cfg.ChsAPIKey,
 		PaymentsAPIURL:     cfg.PaymentsAPIURL,
-		DAO:                dao.New(cfg),
+		DAO:                dao.NewPaymentReconciliationDAOService(cfg),
 		TranCollection:     cfg.TransactionsCollection,
 		ProdCollection:     cfg.ProductsCollection,
 		ProductMap:         productMap,

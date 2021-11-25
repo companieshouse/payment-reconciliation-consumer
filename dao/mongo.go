@@ -1,81 +1,86 @@
 package dao
 
 import (
-	"fmt"
-	"github.com/companieshouse/payment-reconciliation-consumer/config"
+	"context"
+	"errors"
+	"github.com/companieshouse/chs.go/log"
 	"github.com/companieshouse/payment-reconciliation-consumer/models"
-	"github.com/globalsign/mgo"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
+	"os"
+	"time"
 )
 
-var session *mgo.Session
+var client *mongo.Client
 
-// Mongo represents a simplistic MongoDB configuration.
-type Mongo struct {
-	Config *config.Config
-}
-
-// New returns a new Mongo struct using the provided config
-func New(cfg *config.Config) *Mongo {
-
-	return &Mongo{
-		Config: cfg,
-	}
-}
-
-// getMongoSession gets a MongoDB Session
-func getMongoSession() (*mgo.Session, error) {
-
-	if session == nil {
-
-		var err error
-
-		cfg, err := config.Get()
-		if err != nil {
-			return nil, fmt.Errorf("error getting config: %s", err)
-		}
-
-		session, err = mgo.Dial(cfg.MongoDBURL)
-		if err != nil {
-			return nil, fmt.Errorf("error dialling into mongodb: %s", err)
-		}
+func getMongoClient(mongoDBURL string) *mongo.Client {
+	if client != nil {
+		return client
 	}
 
-	return session.Copy(), nil
+	ctx := context.Background()
+
+	clientOptions := options.Client().ApplyURI(mongoDBURL)
+	client, err := mongo.Connect(ctx, clientOptions)
+
+	// Assume the caller of this func cannot handle the case where there is no database connection
+	// so the service must crash here as it cannot continue.
+	if err != nil {
+		log.Error(err)
+		os.Exit(1)
+	}
+
+	// Check we can connect to the mongodb instance. Failure here should result in a crash.
+	pingContext, cancel := context.WithDeadline(ctx, time.Now().Add(5*time.Second))
+	err = client.Ping(pingContext, nil)
+	if err != nil {
+		log.Error(errors.New("ping to mongodb timed out. please check the connection to mongodb and that it is running"))
+		os.Exit(1)
+	}
+	defer cancel()
+
+	log.Info("connected to mongodb successfully")
+
+	return client
+}
+
+// MongoDatabaseInterface is an interface that describes the mongodb driver
+type MongoDatabaseInterface interface {
+	Collection(name string, opts ...*options.CollectionOptions) *mongo.Collection
+}
+
+func getMongoDatabase(mongoDBURL, databaseName string) MongoDatabaseInterface {
+	return getMongoClient(mongoDBURL).Database(databaseName)
+}
+
+// MongoService is an implementation of the Service interface using MongoDB as the backend driver.
+type MongoService struct {
+	db             MongoDatabaseInterface
+	TransactionsCollection string
+	ProductsCollection string
+	RefundsCollection string
 }
 
 // CreateEshuResource will store the eshu file details into the database
-func (m *Mongo) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
+func (m *MongoService) CreateEshuResource(eshuResource *models.EshuResourceDao) error {
+	collection := m.db.Collection(m.ProductsCollection)
+	_, err := collection.InsertOne(context.Background(), eshuResource)
 
-	mongoSession, err := getMongoSession()
-	if err != nil {
-		return err
-	}
-	defer mongoSession.Close()
-
-	return mongoSession.DB(m.Config.Database).C(m.Config.ProductsCollection).Insert(eshuResource)
-
+	return err
 }
 
 // CreatePaymentTransactionsResource will store the payment_transaction file details into the database
-func (m *Mongo) CreatePaymentTransactionsResource(paymentTransactionsResource *models.PaymentTransactionsResourceDao) error {
+func (m *MongoService) CreatePaymentTransactionsResource(paymentTransactionsResource *models.PaymentTransactionsResourceDao) error {
+	collection := m.db.Collection(m.TransactionsCollection)
+	_, err := collection.InsertOne(context.Background(), paymentTransactionsResource)
 
-	mongoSession, err := getMongoSession()
-	if err != nil {
-		return err
-	}
-	defer mongoSession.Close()
-
-	return mongoSession.DB(m.Config.Database).C(m.Config.TransactionsCollection).Insert(paymentTransactionsResource)
+	return err
 }
 
 // CreateRefundResource will store the refund file details into the database
-func (m *Mongo) CreateRefundResource(refundResource *models.RefundResourceDao) error {
+func (m *MongoService) CreateRefundResource(refundResource *models.RefundResourceDao) error {
+	collection := m.db.Collection(m.RefundsCollection)
+	_, err := collection.InsertOne(context.Background(), refundResource)
 
-	mongoSession, err := getMongoSession()
-	if err != nil {
-		return err
-	}
-	defer mongoSession.Close()
-
-	return mongoSession.DB(m.Config.Database).C(m.Config.RefundsCollection).Insert(refundResource)
+	return err
 }

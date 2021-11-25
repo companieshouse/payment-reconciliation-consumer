@@ -15,5 +15,6 @@ require (
 	github.com/onsi/gomega v1.9.0 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190731233626-505e41936337
 	github.com/stretchr/testify v1.6.1
+	go.mongodb.org/mongo-driver v1.7.4 // indirect
 	gopkg.in/yaml.v2 v2.3.0
 )
