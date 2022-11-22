@@ -442,7 +442,7 @@ func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse
 	}
 
 	if refund != nil {
-		if refund.Status == "submitted" {
+		if refund.Status == "submitted" || refund.Status == "refund-requested" {
 			log.Info("Refund status is submitted. Fetching latest refund status", log.Data{"Refund": refund})
 			var statusCode int
 			refund, statusCode, err = svc.Payments.GetLatestRefundStatus(paymentUrl+"/refunds/"+pp.RefundId, svc.Client, svc.APIKey)
