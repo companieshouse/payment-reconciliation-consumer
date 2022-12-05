@@ -43,4 +43,7 @@ type RefundResourceDao struct {
 	OriginalReference string    `bson:"original_reference"`
 	DisputeDetails    string    `bson:"dispute_details"`
 	ProductCode       int       `bson:"product_code"`
+	PaymentID         string    `bson:"payment_id"`
+	RefundID          string    `bson:"refund_id"`
+	RefundedAt        time.Time `bson:"refunded_at"`
 }

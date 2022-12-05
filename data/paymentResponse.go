@@ -58,11 +58,12 @@ type Created struct {
 }
 
 type RefundResource struct {
-	RefundId          string `json:"refund_id"`
-	CreatedAt         string `json:"created_at"`
-	Amount            int    `json:"amount"`
-	Status            string `json:"status"`
-	ExternalRefundUrl string `json:"external_refund_url"`
+	RefundId          string    `json:"refund_id"`
+	RefundedAt        time.Time `json:"refunded_at"`
+	CreatedAt         string    `json:"created_at"`
+	Amount            int       `json:"amount"`
+	Status            string    `json:"status"`
+	ExternalRefundUrl string    `json:"external_refund_url"`
 }
 
 // Indicates whether the payment is reconcilable or not.
@@ -71,21 +72,21 @@ func (payment PaymentResponse) IsReconcilable(productMap *config.ProductMap) boo
 	classOfPayment := payment.Costs[0].ClassOfPayment[0]
 
 	// only reconcile these payment classes, others like penalty and legacy reconcile elsewhere
-	if (classOfPayment == DataMaintenance || classOfPayment == OrderableItem) {
+	if classOfPayment == DataMaintenance || classOfPayment == OrderableItem {
 
 		productType := payment.Costs[0].ProductType
 		productCode := productMap.Codes[productType]
 
 		// if product code is zero there is no mapping for the product type so the payment is not reconcilable in CHS
-		if (productCode == 0) {
-			log.Info("Not reconcilable due to product code", log.Data{"reference":payment.Reference, "class_of_payment": classOfPayment, "product_type": productType, "product_code": productCode})
+		if productCode == 0 {
+			log.Info("Not reconcilable due to product code", log.Data{"reference": payment.Reference, "class_of_payment": classOfPayment, "product_type": productType, "product_code": productCode})
 			return false
 		}
 
-		log.Info("Reconcilable payment", log.Data{"reference":payment.Reference, "class_of_payment": classOfPayment, "product_type": productType, "product_code": productCode})
+		log.Info("Reconcilable payment", log.Data{"reference": payment.Reference, "class_of_payment": classOfPayment, "product_type": productType, "product_code": productCode})
 		return true
 	}
 
-	log.Info("Not reconcilable due to class of payment", log.Data{"reference":payment.Reference, "class_of_payment": classOfPayment})
+	log.Info("Not reconcilable due to class of payment", log.Data{"reference": payment.Reference, "class_of_payment": classOfPayment})
 	return false
 }
