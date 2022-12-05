@@ -457,7 +457,7 @@ func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse
 }
 
 func handleRefund(paymentResponse data.PaymentResponse, refund *data.RefundResource, svc *Service, message *sarama.ConsumerMessage, pp data.PaymentProcessed, err error) {
-	if refund.Status == "success" {
+	if refund.Status == "success"  || refund.Status == "refund-success" {
 		log.Info("Refund successful. Reconciling...", log.Data{"Refund": refund})
 		reconcileRefund(paymentResponse, svc, message, refund, pp)
 	} else if refund.Status == "failed" {
