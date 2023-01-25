@@ -88,7 +88,7 @@ func New(consumerTopic, consumerGroupName string, cfg *config.Config, retry *res
 		keys.AppName:    appName,
 		keys.MaxRetries: maxRetries,
 		keys.Producer:   p})
-	rh := resilience.NewHandler(consumerTopic, "consumer", retry, p, &avro.Schema{Definition: ppSchema})
+	rh := resilience.NewHandler(consumerTopic, "payment-reconciliation-consumer", retry, p, &avro.Schema{Definition: ppSchema})
 
 	// Work out what topic we're consuming from, depending on whether were processing resilience or error input
 	topicName := consumerTopic
@@ -457,7 +457,7 @@ func (svc *Service) handleRefundTransaction(paymentResponse data.PaymentResponse
 }
 
 func handleRefund(paymentResponse data.PaymentResponse, refund *data.RefundResource, svc *Service, message *sarama.ConsumerMessage, pp data.PaymentProcessed, err error) {
-	if refund.Status == "success"  || refund.Status == "refund-success" {
+	if refund.Status == "success" || refund.Status == "refund-success" {
 		log.Info("Refund successful. Reconciling...", log.Data{"Refund": refund})
 		reconcileRefund(paymentResponse, svc, message, refund, pp)
 	} else if refund.Status == "failed" {
