@@ -53,6 +53,15 @@ const paymentDetailsTestData = `{
     "payment_status": "accepted"
 }`
 
+const refundStatusTestData = `{
+    "refund_id": "lp9o81j5pgo0efsscq86vsn7pn",
+    "refunded_at": "2019-07-12T12:26:32.786Z",
+    "created_at": "2019-07-12T12:26:32.786Z",
+    "amount": 100,
+    "status": "success",
+    "payment_external_refund_url": "http://test.url"
+}`
+
 func TestUnitGetPayment(t *testing.T) {
 
 	p := Fetch{}
@@ -120,6 +129,30 @@ func TestUnitGetDetailsPayment(t *testing.T) {
 			p.GetPaymentDetails("http://test-url.com",
 				testutil.CreateMockClient(false, 404, paymentDetailsTestData),
 				"")
+		So(err, ShouldNotBeNil)
+		So(statusCode, ShouldEqual, 404)
+	})
+}
+
+func TestUnitGetLatestRefundStatus(t *testing.T) {
+
+	p := Fetch{}
+
+	Convey("test successful get refund details ", t, func() {
+		b, statusCode, err := p.GetLatestRefundStatus("http://test-url.com", testutil.CreateMockClient(true, 200, refundStatusTestData), "")
+		So(err, ShouldBeNil)
+		So(statusCode, ShouldEqual, 200)
+		So(b, ShouldNotBeEmpty)
+	})
+
+	Convey("test error returned when client throws error", t, func() {
+		_, statusCode, err := p.GetLatestRefundStatus("test-url.com", testutil.CreateMockClient(false, 500, refundStatusTestData), "")
+		So(err, ShouldNotBeNil)
+		So(statusCode, ShouldEqual, 500)
+	})
+
+	Convey("test error returned when invalid http status returned", t, func() {
+		_, statusCode, err := p.GetLatestRefundStatus("http://test-url.com", testutil.CreateMockClient(false, 404, refundStatusTestData), "")
 		So(err, ShouldNotBeNil)
 		So(statusCode, ShouldEqual, 404)
 	})

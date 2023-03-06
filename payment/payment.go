@@ -68,7 +68,6 @@ func (impl *Fetch) GetPayment(paymentAPIURL string, HTTPClient *http.Client, api
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
-	log.Info("Payment response body", log.Data{keys.Payment: string(body)})
 	if err != nil {
 		return p, res.StatusCode, err
 	}
@@ -76,6 +75,7 @@ func (impl *Fetch) GetPayment(paymentAPIURL string, HTTPClient *http.Client, api
 	if err := json.Unmarshal(body, &p); err != nil {
 		return p, res.StatusCode, err
 	}
+	log.Info("Payment response body", log.Data{keys.Payment: p})
 
 	return p, res.StatusCode, nil
 }
@@ -104,7 +104,6 @@ func (impl *Fetch) GetPaymentDetails(paymentAPIURL string, HTTPClient *http.Clie
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
-	log.Info("Payment details response body", log.Data{keys.PaymentDetails: string(body)})
 	if err != nil {
 		return p, res.StatusCode, err
 	}
@@ -112,6 +111,7 @@ func (impl *Fetch) GetPaymentDetails(paymentAPIURL string, HTTPClient *http.Clie
 	if err := json.Unmarshal(body, &p); err != nil {
 		return p, res.StatusCode, err
 	}
+	log.Info("Payment details response body", log.Data{keys.PaymentDetails: p})
 
 	return p, res.StatusCode, nil
 }
@@ -139,7 +139,6 @@ func (impl *Fetch) GetLatestRefundStatus(refundEndpointUrl string, HTTPClient *h
 	}
 
 	body, err := ioutil.ReadAll(res.Body)
-	log.Info("Refund response body", log.Data{keys.RefundDetails: string(body)})
 	if err != nil {
 		return &p, res.StatusCode, err
 	}
@@ -147,6 +146,7 @@ func (impl *Fetch) GetLatestRefundStatus(refundEndpointUrl string, HTTPClient *h
 	if err := json.Unmarshal(body, &p); err != nil {
 		return &p, res.StatusCode, err
 	}
+	log.Info("Refund response body", log.Data{keys.RefundDetails: p})
 
 	return &p, res.StatusCode, nil
 }
