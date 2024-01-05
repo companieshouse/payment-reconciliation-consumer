@@ -29,5 +29,6 @@ product_code:
   sr01: 16033
   confirmation-statement: 15000
   ll-confirmation-statement: 15003
-  digital-certificate: 25141
-  digital-certified-document: 25142
+  certificate-digital: 25141
+  certified-copy-digital: 25142
+  certified-copy-incorporation-digital: 25142
