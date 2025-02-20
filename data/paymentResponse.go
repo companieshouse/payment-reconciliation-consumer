@@ -10,6 +10,8 @@ import (
 const DataMaintenance = "data-maintenance"
 const OrderableItem = "orderable-item"
 const Penalty = "penalty"
+const PenaltyLfp = "penalty-lfp"
+const PenaltySanctions = "penalty-sanctions"
 const Legacy = "legacy"
 
 // PaymentResponse represents a response from the payment service GET payment endpoint
@@ -72,7 +74,7 @@ func (payment PaymentResponse) IsReconcilable(productMap *config.ProductMap) boo
 	classOfPayment := payment.Costs[0].ClassOfPayment[0]
 
 	// only reconcile these payment classes, others like penalty and legacy reconcile elsewhere
-	if classOfPayment == DataMaintenance || classOfPayment == OrderableItem {
+	if classOfPayment == DataMaintenance || classOfPayment == OrderableItem || classOfPayment == PenaltySanctions {
 
 		productType := payment.Costs[0].ProductType
 		productCode := productMap.Codes[productType]

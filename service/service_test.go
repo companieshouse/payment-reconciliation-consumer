@@ -245,6 +245,57 @@ func TestUnitStart(t *testing.T) {
 		})
 	})
 
+	Convey("Process of a single Kafka message for a 'penalty-lfp' payment", t, func() {
+		wg := &sync.WaitGroup{}
+		wg.Add(1)
+		c := make(chan os.Signal)
+
+		mockPayment := payment.NewMockFetcher(ctrl)
+		mockTransformer := transformer.NewMockTransformer(ctrl)
+		mockDao := dao.NewMockDAO(ctrl)
+
+		svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+
+		Convey("Given a message is readily available for the service to consume", func() {
+			svc.Consumer = createMockConsumerWithPaymentMessage(paymentResourceID)
+
+			Convey("When the payment corresponding to the message is fetched successfully", func() {
+
+				cost := data.Cost{
+					ClassOfPayment: []string{data.PenaltyLfp},
+				}
+
+				pr := data.PaymentResponse{
+					Costs: []data.Cost{cost},
+				}
+
+				mockPayment.EXPECT().GetPayment(paymentsAPIUrl+"/payments/"+paymentResourceID, svc.Client, apiKey).DoAndReturn(func(paymentAPIURL string, HTTPClient *http.Client, apiKey string) (data.PaymentResponse, int, error) {
+					endConsumerProcess(svc, c)
+
+					return pr, 200, nil
+				})
+
+				Convey("But payment details are never fetched", func() {
+					mockPayment.EXPECT().GetPaymentDetails(paymentsAPIUrl+"/private/payments/"+paymentResourceID+"/payment-details", svc.Client, apiKey).Times(0)
+
+					Convey("And no Eshu resource is ever constructed", func() {
+						mockTransformer.EXPECT().GetEshuResources(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+						Convey("Nor is a transactions resource created", func() {
+							mockTransformer.EXPECT().GetTransactionResources(gomock.Any(), gomock.Any(), gomock.Any()).Times(0)
+
+							svc.Start(wg, c)
+						})
+					})
+				})
+			})
+		})
+	})
+
+	Convey("Successful process of a single Kafka message for an 'penalty-sanctions' payment", t, func() {
+		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.PenaltySanctions)
+	})
+
 	Convey("Successful process of a single Kafka message for an 'orderable-item' payment", t, func() {
 		processingOfPaymentKafkaMessageCreatesReconciliationRecords(ctrl, productMap, data.OrderableItem)
 	})
@@ -552,7 +603,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -627,7 +678,7 @@ func processingOfRefundKafkaMessageCreatesReconciliationRecords(
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -697,7 +748,7 @@ func processingOfRefundKafkaMessageWithSubmittedStatusCreatesReconciliationRecor
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -779,7 +830,7 @@ func processingOfRefundKafkaMessageWithMultipleRefundsCreatesReconciliationRecor
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -859,7 +910,7 @@ func processingOfUnsuccessfulRefundKafkaMessageWithIncorrectRefundIdDoesNotCreat
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -928,7 +979,7 @@ func processingOfUnsuccessfulRefundKafkaMessageDoesNotCreateReconciliationRecord
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -997,7 +1048,7 @@ func processingOfUnsuccessfulRefundKafkaMessageWithSubmittedDoesNotCreateReconci
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{

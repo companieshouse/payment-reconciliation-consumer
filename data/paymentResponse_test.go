@@ -1,15 +1,15 @@
 package data
 
 import (
+	"fmt"
+	"github.com/companieshouse/chs.go/log"
+	"github.com/companieshouse/payment-reconciliation-consumer/config"
 	. "github.com/smartystreets/goconvey/convey"
 	. "github.com/stretchr/testify/assert"
-	"testing"
-	"github.com/companieshouse/payment-reconciliation-consumer/config"
-	"github.com/companieshouse/chs.go/log"
-	"fmt"
-	"path/filepath"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
+	"path/filepath"
+	"testing"
 )
 
 func TestUnitIsReconcilable(t *testing.T) {
@@ -35,6 +35,16 @@ func TestUnitIsReconcilable(t *testing.T) {
 		Equal(t, penalty.IsReconcilable(productMap), false, "penalty payments should not be reconcilable")
 	})
 
+	Convey("penalty lfp payments are not reconcilable", t, func() {
+		penalty := createPaymentResponse(PenaltyLfp, "late-filing-penalty")
+		Equal(t, penalty.IsReconcilable(productMap), false, "penalty lfp payments should not be reconcilable")
+	})
+
+	Convey("penalty lfp payments are not reconcilable", t, func() {
+		penalty := createPaymentResponse(PenaltySanctions, "penalty-sanctions")
+		Equal(t, penalty.IsReconcilable(productMap), false, "penalty sanctions payments should not be reconcilable")
+	})
+
 	Convey("legacy payments are not reconcilable", t, func() {
 		penalty := createPaymentResponse(Legacy, "webfiling")
 		Equal(t, penalty.IsReconcilable(productMap), false, "legacy payments should not be reconcilable")
@@ -56,7 +66,7 @@ func TestUnitIsReconcilable(t *testing.T) {
 func createPaymentResponse(classOfPayment string, productType string) PaymentResponse {
 	cost := Cost{
 		ClassOfPayment: []string{classOfPayment},
-		ProductType: productType,
+		ProductType:    productType,
 	}
 	paymentResponse := PaymentResponse{
 		Costs: []Cost{cost},
