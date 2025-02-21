@@ -35,12 +35,12 @@ func TestUnitIsReconcilable(t *testing.T) {
 		Equal(t, penalty.IsReconcilable(productMap), false, "penalty payments should not be reconcilable")
 	})
 
-	Convey("penalty lfp payments are not reconcilable", t, func() {
+	Convey("late filing penalty payments are not reconcilable", t, func() {
 		penalty := createPaymentResponse(PenaltyLfp, "late-filing-penalty")
-		Equal(t, penalty.IsReconcilable(productMap), false, "penalty lfp payments should not be reconcilable")
+		Equal(t, penalty.IsReconcilable(productMap), false, "late filing penalty payments should not be reconcilable")
 	})
 
-	Convey("penalty lfp payments are not reconcilable", t, func() {
+	Convey("penalty sanctions payments are not reconcilable", t, func() {
 		penalty := createPaymentResponse(PenaltySanctions, "penalty-sanctions")
 		Equal(t, penalty.IsReconcilable(productMap), false, "penalty sanctions payments should not be reconcilable")
 	})

@@ -245,7 +245,7 @@ func TestUnitStart(t *testing.T) {
 		})
 	})
 
-	Convey("Process of a single Kafka message for a 'penalty-lfp' payment", t, func() {
+	Convey("Process of a single Kafka message for a late filing penalty payment", t, func() {
 		wg := &sync.WaitGroup{}
 		wg.Add(1)
 		c := make(chan os.Signal)
