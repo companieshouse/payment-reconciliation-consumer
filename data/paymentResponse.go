@@ -74,7 +74,7 @@ func (payment PaymentResponse) IsReconcilable(productMap *config.ProductMap) boo
 	classOfPayment := payment.Costs[0].ClassOfPayment[0]
 
 	// only reconcile these payment classes, others like penalty and legacy reconcile elsewhere
-	if classOfPayment == DataMaintenance || classOfPayment == OrderableItem || classOfPayment == PenaltySanctions {
+	if classOfPayment == DataMaintenance || classOfPayment == OrderableItem {
 
 		productType := payment.Costs[0].ProductType
 		productCode := productMap.Codes[productType]
