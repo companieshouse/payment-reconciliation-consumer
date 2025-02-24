@@ -2,14 +2,15 @@ package data
 
 import (
 	"fmt"
-	"github.com/companieshouse/chs.go/log"
-	"github.com/companieshouse/payment-reconciliation-consumer/config"
-	. "github.com/smartystreets/goconvey/convey"
-	. "github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"path/filepath"
 	"testing"
+
+	"github.com/companieshouse/chs.go/log"
+	"github.com/companieshouse/payment-reconciliation-consumer/config"
+	. "github.com/smartystreets/goconvey/convey"
+	. "github.com/stretchr/testify/assert"
 )
 
 func TestUnitIsReconcilable(t *testing.T) {
