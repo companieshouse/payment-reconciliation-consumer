@@ -55,10 +55,10 @@ func getMongoDatabase(mongoDBURL, databaseName string) MongoDatabaseInterface {
 
 // MongoService is an implementation of the Service interface using MongoDB as the backend driver.
 type MongoService struct {
-	db             MongoDatabaseInterface
+	db                     MongoDatabaseInterface
 	TransactionsCollection string
-	ProductsCollection string
-	RefundsCollection string
+	ProductsCollection     string
+	RefundsCollection      string
 }
 
 // CreateEshuResource will store the eshu file details into the database

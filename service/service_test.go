@@ -91,7 +91,7 @@ func createMockConsumerWithRefundMessage(paymentId string, refundId string) *con
 func createMockConsumerWithMessage(paymentId string, refundId string) *consumer.GroupConsumer {
 
 	return &consumer.GroupConsumer{
-		GConsumer: MockConsumer{PaymentId: paymentId, RefundId: refundId},
+		GConsumer: MockConsumer{paymentId: paymentId, RefundId: refundId},
 		Group:     MockGroup{},
 	}
 }
@@ -144,12 +144,12 @@ func (m MockProducer) Close() error {
 }
 
 type MockConsumer struct {
-	PaymentId string
+	paymentId string
 	RefundId  string
 }
 
 func (m MockConsumer) prepareTestKafkaMessage() ([]byte, error) {
-	return MockSchema.Marshal(data.PaymentProcessed{ResourceURI: m.PaymentId, RefundId: m.RefundId})
+	return MockSchema.Marshal(data.PaymentProcessed{ResourceURI: m.paymentId, RefundId: m.RefundId})
 }
 
 func (m MockConsumer) Close() error {
@@ -513,6 +513,48 @@ func TestUnitCheckSkipGoneResource(t *testing.T) {
 	})
 }
 
+func TestUnitSkipGoneResource(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	productMap, err := createProductMap()
+	if err != nil {
+		log.Error(fmt.Errorf("error initialising productMap: %s", err), nil)
+	}
+
+	mockPayment := payment.NewMockFetcher(ctrl)
+	mockTransformer := transformer.NewMockTransformer(ctrl)
+	mockDao := dao.NewMockDAO(ctrl)
+
+	svc := createMockService(productMap, mockPayment, mockTransformer, mockDao)
+	message := &sarama.ConsumerMessage{Offset: 1, Topic: "test topic"}
+	notPaymentErrResourceGone := errors.New("different error")
+
+	Convey("Given the error does not equal payment.ErrResourceGone", t, func() {
+		skipGoneResource := svc.skipGoneResource(notPaymentErrResourceGone, paymentResourceID, message)
+		Convey("The value of skipGoneResource should be false", func() {
+			So(skipGoneResource, ShouldEqual, false)
+		})
+	})
+
+	Convey("Given the error equals payment.ErrResourceGone", t, func() {
+		Convey("When the svc.checkSkipGoneResource returns true", func() {
+			svc.SkipGoneResource = true
+			skipGoneResource := svc.skipGoneResource(payment.ErrResourceGone, paymentResourceID, message)
+			Convey("The value of skipGoneResource should be true", func() {
+				So(skipGoneResource, ShouldEqual, true)
+			})
+		})
+		Convey("When the svc.checkSkipGoneResource returns false", func() {
+			svc.SkipGoneResource = false
+			skipGoneResource := svc.skipGoneResource(payment.ErrResourceGone, paymentResourceID, message)
+			Convey("The value of skipGoneResource should be false", func() {
+				So(skipGoneResource, ShouldEqual, false)
+			})
+		})
+	})
+}
+
 // endConsumerProcess facilitates service termination
 func endConsumerProcess(svc *Service, c chan os.Signal) {
 
@@ -552,7 +594,7 @@ func processingOfPaymentKafkaMessageCreatesReconciliationRecords(
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -627,7 +669,7 @@ func processingOfRefundKafkaMessageCreatesReconciliationRecords(
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -697,7 +739,7 @@ func processingOfRefundKafkaMessageWithSubmittedStatusCreatesReconciliationRecor
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -779,7 +821,7 @@ func processingOfRefundKafkaMessageWithMultipleRefundsCreatesReconciliationRecor
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -859,7 +901,7 @@ func processingOfUnsuccessfulRefundKafkaMessageWithIncorrectRefundIdDoesNotCreat
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -928,7 +970,7 @@ func processingOfUnsuccessfulRefundKafkaMessageDoesNotCreateReconciliationRecord
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{
@@ -997,7 +1039,7 @@ func processingOfUnsuccessfulRefundKafkaMessageWithSubmittedDoesNotCreateReconci
 
 			cost := data.Cost{
 				ClassOfPayment: []string{classOfPayment},
-				ProductType: "certificate",
+				ProductType:    "certificate",
 			}
 
 			pr := data.PaymentResponse{

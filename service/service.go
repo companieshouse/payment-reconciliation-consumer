@@ -320,7 +320,7 @@ func (svc *Service) MaskSensitiveFields(payment *data.PaymentResponse) {
 
 }
 
-//Shutdown closes all producers and consumers for this service
+// Shutdown closes all producers and consumers for this service
 func (svc *Service) Shutdown(topic string) {
 
 	log.Info("Shutting down service ", log.Data{keys.Topic: topic})

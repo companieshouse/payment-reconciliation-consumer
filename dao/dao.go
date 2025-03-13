@@ -15,9 +15,9 @@ type DAO interface {
 func NewPaymentReconciliationDAOService(cfg *config.Config) DAO {
 	database := getMongoDatabase(cfg.MongoDBURL, cfg.Database)
 	return &MongoService{
-		db:             database,
+		db:                     database,
 		TransactionsCollection: cfg.TransactionsCollection,
-		ProductsCollection: cfg.ProductsCollection,
-		RefundsCollection: cfg.RefundsCollection,
+		ProductsCollection:     cfg.ProductsCollection,
+		RefundsCollection:      cfg.RefundsCollection,
 	}
 }
