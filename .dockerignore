@@ -3,3 +3,5 @@
 !assets
 !docker_start.sh
 !payment-reconciliation-consumer
+coverage.html
+coverage.out

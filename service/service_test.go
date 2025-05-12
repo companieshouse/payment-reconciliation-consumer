@@ -3,9 +3,17 @@ package service
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path/filepath"
+	"sync"
+	"testing"
+	"time"
+
 	"github.com/Shopify/sarama"
 	"github.com/companieshouse/chs.go/avro"
-	"github.com/companieshouse/chs.go/kafka/consumer/cluster"
+	consumer "github.com/companieshouse/chs.go/kafka/consumer/cluster"
 	"github.com/companieshouse/chs.go/kafka/producer"
 	"github.com/companieshouse/chs.go/log"
 	"github.com/companieshouse/payment-reconciliation-consumer/config"
@@ -19,13 +27,6 @@ import (
 	"github.com/golang/mock/gomock"
 	. "github.com/smartystreets/goconvey/convey"
 	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"path/filepath"
-	"sync"
-	"testing"
-	"time"
 )
 
 const paymentsAPIUrl = "paymentsAPIUrl"
