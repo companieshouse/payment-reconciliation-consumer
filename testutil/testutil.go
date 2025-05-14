@@ -1,5 +1,3 @@
-//coverage:ignore file
-
 package testutil
 
 import (

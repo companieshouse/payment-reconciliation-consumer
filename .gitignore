@@ -3,6 +3,9 @@ payment-reconciliation-consumer
 payment-reconciliation-consumer-*.zip
 build.log
 build
+coverage.html
+coverage.out
+settings.json
 
 # Test output
 test.xml

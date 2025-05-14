@@ -1,5 +1,3 @@
-//coverage:ignore file
-
 package keys
 
 // Keys used to identify log message data items.
