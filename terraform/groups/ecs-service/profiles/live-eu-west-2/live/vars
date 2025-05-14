@@ -1,0 +1,8 @@
+environment = "live"
+aws_profile = "live-eu-west-2"
+
+# service configs
+use_set_environment_files = true
+required_cpus = 512
+required_memory = 1024
+service_autoscale_scale_out_cooldown = 600
