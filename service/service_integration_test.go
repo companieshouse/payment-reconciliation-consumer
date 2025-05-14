@@ -12,10 +12,10 @@ import (
 	"github.com/companieshouse/chs.go/avro/schema"
 	"github.com/companieshouse/chs.go/kafka/resilience"
 	"github.com/companieshouse/payment-reconciliation-consumer/config"
+	testutils "github.com/companieshouse/payment-reconciliation-consumer/testutil"
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/modules/kafka"
-	testutils "github.com/companieshouse/payment-reconciliation-consumer/testutil"
 )
 
 type mockSchemaResponse struct {
@@ -53,7 +53,7 @@ func setupKafkaContainer(t *testing.T) *kafka.KafkaContainer {
 
 func TestNewService(t *testing.T) {
 	container, uri, _ := testutils.SetupMongoContainer()
-		defer container.Terminate(context.Background())
+	defer container.Terminate(context.Background())
 	t.Parallel()
 
 	ctx := context.Background()
@@ -81,7 +81,7 @@ func TestNewService(t *testing.T) {
 		BrokerAddr:        []string{bootstrapAddr},
 		ZookeeperChroot:   "",
 		ChsAPIKey:         "test-api-key",
-		PaymentsAPIURL: "http://mock-payments",
+		PaymentsAPIURL:    "http://mock-payments",
 		IsErrorConsumer:   false,
 		MongoDBURL:        uri,
 	}

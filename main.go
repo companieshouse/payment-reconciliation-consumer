@@ -60,12 +60,11 @@ func main() {
 	router := pat.New()
 	handlers.Init(router)
 	go func() {
-			log.Info("Starting HTTP server on :" + "8080")
-			if err := http.ListenAndServe(":8080", router); err != nil {
-					log.Error(fmt.Errorf("error starting HTTP server: %s", err), nil)
-			}
-		}()
-
+		log.Info("Starting HTTP server on :" + "8080")
+		if err := http.ListenAndServe(":8080", router); err != nil {
+			log.Error(fmt.Errorf("error starting HTTP server: %s", err), nil)
+		}
+	}()
 
 	waitForServiceClose(&wg, mainChannel, retryChannel)
 
