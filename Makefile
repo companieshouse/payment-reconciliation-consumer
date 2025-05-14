@@ -62,7 +62,6 @@ coverage-html:
 .PHONY: clean
 clean: clean-coverage
 	go mod tidy
-	rm -rf ./ecs-image-build/app/ ./$(BIN)-*.zip
 
 .PHONY: package
 package:
@@ -72,9 +71,9 @@ endif
 	$(eval tmpdir := $(shell mktemp -d build-XXXXXXXXXX))
 	cp ./ecs-image-build/app/$(BIN) $(tmpdir)/$(BIN)
 	cp ./ecs-image-build/docker_start.sh $(tmpdir)/docker_start.sh
-	cd $(tmpdir) && zip ../$(BIN)-$(VERSION).zip $(BIN) docker_start.sh
+	cp ./assets/product_code.yml $(tmpdir)/product_code.yml
+	cd $(tmpdir) && zip ../$(BIN)-$(VERSION).zip $(BIN) docker_start.sh product_code.yml
 	rm -rf $(tmpdir)
-
 
 .PHONY: dist
 dist: clean build package
