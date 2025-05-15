@@ -2,7 +2,7 @@
 # Common
 BIN          := payment-reconciliation-consumer
 SHELL		 :=	/bin/bash
-VERSION		 = unversioned
+VERSION		 ?= unversioned
 
 # Go
 CGO_ENABLED  = 1
