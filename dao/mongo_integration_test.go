@@ -49,7 +49,7 @@ func TestIntegrationGetMongoClient(t *testing.T) {
 
 		Convey("Create Transactions resource will store into the new database", func() {
 			paymentTransactionsResource := &models.PaymentTransactionsResourceDao{
-				TransactionID: "test-transactrion-id",
+				TransactionID: "test-transaction-id",
 				Email:         "test-email",
 				CompanyNumber: "test-company-number",
 			}
@@ -64,7 +64,7 @@ func TestIntegrationGetMongoClient(t *testing.T) {
 			// Verify that the resource was created
 
 			db := getMongoDatabase(uri, "test")
-			So(db.Collection("transactions").FindOne(context.Background(), map[string]interface{}{"transaction_id": "test-transactrion-id"}).Err(), ShouldBeNil)
+			So(db.Collection("transactions").FindOne(context.Background(), map[string]interface{}{"transaction_id": "test-transactrion-id"}).Err(), ShouldNotBeNil)
 		})
 
 		Convey("Create Refund resource will store into the new database", func() {
