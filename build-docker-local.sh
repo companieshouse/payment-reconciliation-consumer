@@ -48,3 +48,4 @@ echo "Build complete: $IMAGE_NAME"
 
 #Optional cleanup
 rm -rf ecs-image-build/app
+rm -f ecs-image-build/product_code.yml
