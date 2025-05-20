@@ -38,9 +38,6 @@ COMPOSE_FILE=$(find "$COMPOSE_DIR" -name "${COMPOSE}.docker-compose.yaml" | head
 IMAGE_NAME=$(awk -F'image: ' '/image:/ {print $2}' "$COMPOSE_FILE" | xargs)
 [ -n "$IMAGE_NAME" ] || { echo "No image name found in compose"; exit 1; }
 
-#mkdir ecs-image-build/assets
-cp ./assets/product_code.yml ecs-image-build/product_code.yml
-
 #Build image
 echo "Building $IMAGE_NAME"
 docker build -t "$IMAGE_NAME" ecs-image-build
