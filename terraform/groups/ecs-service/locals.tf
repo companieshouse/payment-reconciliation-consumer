@@ -4,6 +4,7 @@ locals {
   name_prefix                = "${local.stack_name}-${var.environment}"
   global_prefix              = "global-${var.environment}"
   service_name               = "payment-reconciliation-consumer"
+  service_short_name         = "payment-recon-consumer"
   container_port             = "8080"
   docker_repo                = "payment-reconciliation-consumer"
   kms_alias                  = "alias/${var.aws_profile}/environment-services-kms"
