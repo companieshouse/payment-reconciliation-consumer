@@ -71,7 +71,7 @@ endif
 	$(eval tmpdir := $(shell mktemp -d build-XXXXXXXXXX))
 	cp ./ecs-image-build/app/$(BIN) $(tmpdir)/$(BIN)
 	cp ./ecs-image-build/docker_start.sh $(tmpdir)/docker_start.sh
-	cp ./ecs-image-build/product_code.yml $(tmpdir)/product_code.yml
+	cp ./assets/product_code.yml $(tmpdir)/product_code.yml
 	cd $(tmpdir) && zip ../$(BIN)-$(VERSION).zip $(BIN) docker_start.sh product_code.yml
 	rm -rf $(tmpdir)
 

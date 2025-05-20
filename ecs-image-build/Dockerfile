@@ -9,4 +9,5 @@ COPY product_code.yml ./assets/
 COPY docker_start.sh .
 
 RUN chmod +x docker_start.sh
+RUN chmod +x ./assets/product_code.yml
 CMD ["./docker_start.sh"]
