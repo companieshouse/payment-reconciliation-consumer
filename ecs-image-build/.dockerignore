@@ -4,4 +4,5 @@
 !assets
 !docker_start.sh
 !payment-reconciliation-consumer
-!app
+!app/
+!app/**
