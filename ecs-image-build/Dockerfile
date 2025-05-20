@@ -4,9 +4,9 @@ WORKDIR /opt
 
 RUN mkdir -p assets
 
-COPY /app .
-COPY product_code.yml ./assets/
-COPY docker_start.sh .
+COPY app/payment-reconciliation-consumer .
+COPY app/docker_start.sh .
+COPY app/product_code.yml ./assets/
 
 RUN chmod +x docker_start.sh
 CMD ["./docker_start.sh"]
