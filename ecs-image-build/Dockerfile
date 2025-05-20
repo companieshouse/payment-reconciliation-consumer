@@ -5,7 +5,7 @@ WORKDIR /opt
 RUN mkdir -p assets
 
 COPY /app .
-COPY product_code.yml ./assets/
+COPY assets ./assets/
 COPY docker_start.sh .
 
 RUN chmod +x docker_start.sh
