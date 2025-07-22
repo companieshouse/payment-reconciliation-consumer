@@ -4,6 +4,7 @@ locals {
   name_prefix                = "${local.stack_name}-${var.environment}"
   global_prefix              = "global-${var.environment}"
   service_name               = "payment-reconciliation-consumer"
+  service_name_v2            = "payment-reconciliation-consumer-kafka-v2"
   container_port             = "8080"
   docker_repo                = "payment-reconciliation-consumer"
   kms_alias                  = "alias/${var.aws_profile}/environment-services-kms"
@@ -15,8 +16,12 @@ locals {
   application_subnet_ids     = data.aws_subnets.application.ids
   application_subnet_pattern = local.stack_secrets["application_subnet_pattern"]
 
-  stack_secrets   = jsondecode(data.vault_generic_secret.stack_secrets.data_json)
-  service_secrets = jsondecode(data.vault_generic_secret.service_secrets.data_json)
+  stack_secrets                   = jsondecode(data.vault_generic_secret.stack_secrets.data_json)
+  service_secrets                 = jsondecode(data.vault_generic_secret.service_secrets.data_json)
+  # this is a temporary measure for the kafka3 module
+  kafka3_broker_address           = "kafka3-common-kafka-1.aws.chdev.org:9092"
+  # this is a temporary measure for the kafka3 module
+  kafka3_notification_match_topic = "${var.environment}-payment-processed"
 
   vpc_name = local.stack_secrets["vpc_name"]
 
@@ -32,13 +37,16 @@ locals {
     trimprefix(sec.name, "/${local.global_prefix}/") => sec.arn
   }
 
-  global_secret_list = flatten([for key, value in local.global_secrets_arn_map :
+  global_secret_list = flatten([
+    for key, value in local.global_secrets_arn_map :
     { "name" = upper(key), "valueFrom" = value }
   ])
 
   ssm_global_version_map = [
     for sec in data.aws_ssm_parameter.global_secret :
-      { "name"  = "GLOBAL_${var.ssm_version_prefix}${replace(upper(basename(sec.name)), "-", "_")}", "value" = sec.version }
+    {
+      "name" = "GLOBAL_${var.ssm_version_prefix}${replace(upper(basename(sec.name)), "-", "_")}", "value" = sec.version
+    }
   ]
 
   service_secrets_arn_map = {
@@ -46,20 +54,31 @@ locals {
     trimprefix(sec.name, "/${local.service_name}-${var.environment}/") => sec.arn
   }
 
-  service_secret_list = flatten([for key, value in local.service_secrets_arn_map :
+  service_secret_list = flatten([
+    for key, value in local.service_secrets_arn_map :
     { "name" = upper(key), "valueFrom" = value }
   ])
 
   ssm_service_version_map = [
     for sec in module.secrets.secrets :
-      { "name"  = "${replace(upper(local.service_name), "-", "_")}_${var.ssm_version_prefix}${replace(upper(basename(sec.name)), "-", "_")}", "value" = sec.version }
+    {
+      "name"  = "${replace(upper(local.service_name), "-", "_")}_${var.ssm_version_prefix}${replace(upper(basename(sec.name)), "-", "_")}",
+      "value" = sec.version
+    }
   ]
 
   # secrets to go in list
-  task_secrets = concat(local.global_secret_list,local.service_secret_list)
+  task_secrets = concat(local.global_secret_list, local.service_secret_list)
 
-  task_environment = concat(local.ssm_global_version_map,local.ssm_service_version_map,[
+  task_environment = concat(local.ssm_global_version_map, local.ssm_service_version_map, [
     { "name" : "PORT", "value" : local.container_port },
+  ])
+
+  # this is a temporary measure for the kafka3 module
+  task_environment_v2 = concat(local.ssm_global_version_map, local.ssm_service_version_map, [
+    { name : "PORT", value : local.container_port },
+    { name : "KAFKA_BROKER_ADDR", value : local.kafka3_broker_address },
+    { name : "PAYMENT_PROCESSED_TOPIC", value : local.kafka3_notification_match_topic }
   ])
 
 }
