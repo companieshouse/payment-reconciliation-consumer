@@ -18,11 +18,10 @@ locals {
 
   stack_secrets                   = jsondecode(data.vault_generic_secret.stack_secrets.data_json)
   service_secrets                 = jsondecode(data.vault_generic_secret.service_secrets.data_json)
+  # this is a temporary measure for the kafka3 module
   kafka3_broker_address           = "kafka3-common-kafka-1.aws.chdev.org:9092"
   # this is a temporary measure for the kafka3 module
   kafka3_notification_match_topic = "${var.environment}-payment-processed"
-  # this is a temporary measure for the kafka3 module
-
 
   vpc_name = local.stack_secrets["vpc_name"]
 
@@ -75,6 +74,7 @@ locals {
     { "name" : "PORT", "value" : local.container_port },
   ])
 
+  # this is a temporary measure for the kafka3 module
   task_environment_v2 = concat(local.ssm_global_version_map, local.ssm_service_version_map, [
     { name : "PORT", value : local.container_port },
     { name : "KAFKA_BROKER_ADDR", value : local.kafka3_broker_address },

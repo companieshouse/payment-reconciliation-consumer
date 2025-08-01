@@ -119,7 +119,6 @@ module "ecs-service-kafka-v2" {
   use_fargate                          = var.use_fargate
   fargate_subnets                      = local.application_subnet_ids
   read_only_root_filesystem            = false
-  batch_service                        = true
 
   # Service environment variable and secret configs
   task_environment          = local.task_environment_v2
