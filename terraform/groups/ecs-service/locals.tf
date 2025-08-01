@@ -76,9 +76,9 @@ locals {
 
   # this is a temporary measure for the kafka3 module
   task_environment_v2 = concat(local.ssm_global_version_map, local.ssm_service_version_map, [
-    { name : "PORT", value : local.container_port },
-    { name : "KAFKA_BROKER_ADDR", value : local.kafka3_broker_address },
-    { name : "PAYMENT_PROCESSED_TOPIC", value : local.kafka3_notification_match_topic }
+    { "name" : "PORT", "value" : local.container_port },
+    { "name" : "KAFKA_BROKER_ADDR", "value" : local.kafka3_broker_address },
+    { "name" : "PAYMENT_PROCESSED_TOPIC", "value" : local.kafka3_notification_match_topic }
   ])
 
 }
